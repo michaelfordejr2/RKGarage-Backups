@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>R&K AUTO GARAGE | Workshop Schedule</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <script src="core.js"></script>
+    <style>
+        .content { padding: 2rem; max-width: 1200px; margin: auto; }
+        .back-link { display: inline-block; margin-bottom: 1rem; color: var(--secondary); text-decoration: none; font-weight: bold; }
+        .data-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; margin-top: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .data-table th { background: #f8f9fa; padding: 15px; text-align: left; }
+        .data-table td { padding: 15px; border-top: 1px solid #eee; }
+        .form-bar { background: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; gap: 10px; flex-wrap: wrap; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .form-bar input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; flex-grow: 1; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-save { background: var(--secondary); color: white; }
+        #status { font-size: 0.8rem; color: #666; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>R&K AUTO GARAGE</h2>
+        <a href="index.html" style="color: white; text-decoration: none;">Dashboard Home</a>
+    </div>
+    <div class="content">
+        <a href="index.html" class="back-link">← Back to Dashboard</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1>Workshop Schedule</h1>
+            <div id="status">Connecting...</div>
+        </div>
+
+        <div class="form-bar">
+            <input type="text" id="inp_vehicleId" placeholder="vehicleId"><input type="text" id="inp_status" placeholder="status"><input type="text" id="inp_scheduledTime" placeholder="scheduledTime">
+            <button class="btn btn-save" onclick="addItem()">+ Add Record</button>
+        </div>
+
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>vehicleId</th><th>status</th><th>scheduledTime</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="dataBody"></tbody>
+        </table>
+    </div>
+    <script>
+        window.renderPageData = function() {
+            const res = db.exec("SELECT * FROM jobs ORDER BY id DESC");
+            const tbody = document.getElementById('dataBody');
+            tbody.innerHTML = '';
+            if (res.length > 0) {
+                res[0].values.forEach(row => {
+                    const tr = document.createElement('tr');
+                    // Map values to headers
+                    const rowData = {};
+                    res[0].columns.forEach((col, i) => rowData[col] = row[i]);
+                    
+                    tr.innerHTML += `<td>` + (rowData['vehicleId'] || '') + `</td>`;tr.innerHTML += `<td>` + (rowData['status'] || '') + `</td>`;tr.innerHTML += `<td>` + (rowData['scheduledTime'] || '') + `</td>`;
+                    tr.innerHTML += "<td><button onclick='deleteItem(" + rowData.id + ")' style='color: red; border:none; background:none; cursor:pointer;'>Delete</button></td>";
+                    tbody.appendChild(tr);
+                });
+            }
+        };
+
+        async function addItem() {
+            const vals = [document.getElementById('inp_vehicleId').value, document.getElementById('inp_status').value, document.getElementById('inp_scheduledTime').value];
+            if (vals.some(v => v === '')) return alert('Please fill all fields');
+            
+            const sql = "INSERT INTO jobs (vehicleId, status, scheduledTime) VALUES (?, ?, ?)";
+            db.run(sql, vals);
+            await saveDatabase();
+            renderPageData();
+            document.getElementById('inp_vehicleId').value = '';document.getElementById('inp_status').value = '';document.getElementById('inp_scheduledTime').value = '';
+        }
+
+        async function deleteItem(id) {
+            if (!confirm('Are you sure?')) return;
+            db.run("DELETE FROM jobs WHERE id = ?", [id]);
+            await saveDatabase();
+            renderPageData();
+        }
+    </script>
+</body>
+</html>
