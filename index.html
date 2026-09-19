@@ -1,73 +1,91 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>RKGarage | Cloud Management Portal</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #1a1a1a; margin: 0; }
-        .header { background: #1E3A34; color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
-        .container { padding: 40px; max-width: 1200px; margin: auto; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .card h3 { margin-top: 0; color: #2C5E55; font-size: 0.9em; text-transform: uppercase; }
-        .card .value { font-size: 2em; font-weight: bold; }
-        .inventory-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; }
-        .inventory-table th { background: #f8f9fa; text-align: left; padding: 15px; }
-        .inventory-table td { padding: 15px; border-top: 1px solid #eee; }
-        .low-stock { color: #d32f2f; font-weight: bold; }
-    </style>
+    <title>R&K AUTO GARAGE | Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <script src="core.js"></script>
 </head>
 <body>
     <div class="header">
-        <h2>R&K Garage Cloud Portal</h2>
-        <span>Workshop ID: MICH-RKGarage-Backups</span>
-    </div>
-    <div class="container">
-        <div class="stats-grid">
-            <div class="card">
-                <h3>Live Inventory</h3>
-                <div class="value">Securely Synced</div>
-                <p>All parts and spares are available for offline lookup.</p>
-            </div>
-            <div class="card">
-                <h3>Digital Sign-Offs</h3>
-                <div class="value">Active</div>
-                <p>Customer signatures are captured and encrypted.</p>
-            </div>
-            <div class="card">
-                <h3>Auto-Backups</h3>
-                <div class="value">Enabled</div>
-                <p>Every 24 hours on Wi-Fi.</p>
-            </div>
-        </div>
-        <div class="card">
-            <h3>Inventory Overview</h3>
-            <table class="inventory-table">
-                <thead>
-                    <tr>
-                        <th>Asset Type</th>
-                        <th>Status</th>
-                        <th>Last Updated</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Vehicle Database</td>
-                        <td>Synced</td>
-                        <td>Recently</td>
-                    </tr>
-                    <tr>
-                        <td>Parts Catalog</td>
-                        <td>Synced</td>
-                        <td>Recently</td>
-                    </tr>
-                    <tr>
-                        <td>Invoicing Ledger</td>
-                        <td>Synced</td>
-                        <td>Recently</td>
-                    </tr>
-                </tbody>
-            </table>
+        <h2 style="letter-spacing: 1px;">R&K AUTO GARAGE</h2>
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <input type="text" placeholder="Search..." style="padding: 8px 15px; border-radius: 20px; border: none; width: 250px;">
+            <span id="status">Syncing...</span>
+            <span>Admin</span>
         </div>
     </div>
+    <div style="padding: 2rem 2rem 0;">
+        <h1 style="margin: 0; font-weight: 800; font-size: 2.2rem; color: var(--primary);">WORKSHOP DASHBOARD</h1>
+        <p style="margin-top: 5px; color: #666; font-size: 1.1rem;">Good morning, Admin!</p>
+    </div>
+    <div class="dashboard-grid">
+        <a href="garage.html" class="card">
+            <img src="https://img.icons8.com/color/96/truck.png" class="card-icon">
+            <h3>Garage <span style="font-weight: normal; color: gray;">(Inventory)</span></h3>
+            <p>Manage and view all vehicles in your inventory. Track service, status, and details.</p>
+            <div class="card-footer"><span id="stat_garage">-- Vehicles In-House</span> <span class="btn-go">Go ></span></div>
+        </a>
+        <a href="owners.html" class="card">
+            <img src="https://img.icons8.com/color/96/group.png" class="card-icon">
+            <h3>Owners <span style="font-weight: normal; color: gray;">(Customer List)</span></h3>
+            <p>List all vehicle owners. Grouped by company and individuals.</p>
+            <div class="card-footer"><span id="stat_owners">-- Registered Owners</span> <span class="btn-go">Go ></span></div>
+        </a>
+        <a href="parts.html" class="card">
+            <img src="https://img.icons8.com/color/96/settings.png" class="card-icon">
+            <h3>Parts <span style="font-weight: normal; color: gray;">(Spares)</span></h3>
+            <p>Inventory of all parts, spares, and accessories in your database.</p>
+            <div class="card-footer"><span id="stat_parts">-- Items in Database</span> <span class="btn-go">Go ></span></div>
+        </a>
+        <a href="service.html" class="card">
+            <img src="https://img.icons8.com/color/96/wrench.png" class="card-icon">
+            <h3>Service <span style="font-weight: normal; color: gray;">(Operations)</span></h3>
+            <p>Catalogue of service tasks from basic maintenance to complex engine overhauls.</p>
+            <div class="card-footer"><span id="stat_service">-- Service Types</span> <span class="btn-go">Go ></span></div>
+        </a>
+        <a href="schedule.html" class="card">
+            <img src="https://img.icons8.com/color/96/calendar.png" class="card-icon">
+            <h3>Schedule <span style="font-weight: normal; color: gray;">(Calendar)</span></h3>
+            <p>View upcoming appointments and manage workshop availability.</p>
+            <div class="card-footer"><span id="stat_schedule">-- Upcoming Jobs</span> <span class="btn-go">Go ></span></div>
+        </a>
+        <a href="history.html" class="card">
+            <img src="https://img.icons8.com/color/96/task.png" class="card-icon">
+            <h3>History <span style="font-weight: normal; color: gray;">(Logs)</span></h3>
+            <p>A complete log of all completed works. Search and filter by mechanic and task.</p>
+            <div class="card-footer"><span id="stat_history">-- Logs Recorded</span> <span class="btn-go">Go ></span></div>
+        </a>
+        <a href="invoices.html" class="card">
+            <img src="https://img.icons8.com/color/96/bill.png" class="card-icon">
+            <h3>Invoices <span style="font-weight: normal; color: gray;">(Billing)</span></h3>
+            <p>Generate, send, and track all customer invoices and payments.</p>
+            <div class="card-footer"><span id="stat_invoices">-- Pending Invoices</span> <span class="btn-go">Go ></span></div>
+        </a>
+        <a href="mechanics.html" class="card">
+            <img src="https://img.icons8.com/color/96/worker-beard.png" class="card-icon">
+            <h3>Mechanics <span style="font-weight: normal; color: gray;">(Team)</span></h3>
+            <p>Manage your team of mechanics. Track performance and job history.</p>
+            <div class="card-footer"><span id="stat_mechanics">-- Onboarded Mechanics</span> <span class="btn-go">Go ></span></div>
+        </a>
+    </div>
+    <img src="https://cdn-icons-png.flaticon.com/512/2855/2855660.png" class="watermark">
+    <script>
+        window.renderPageData = function() {
+            const getCount = (table) => {
+                const res = db.exec("SELECT COUNT(*) FROM " + table);
+                return res.length > 0 ? res[0].values[0][0] : 0;
+            };
+            document.getElementById('stat_garage').innerText = getCount('vehicles') + ' Vehicles In-House';
+            document.getElementById('stat_owners').innerText = getCount('owners') + ' Registered Owners';
+            document.getElementById('stat_parts').innerText = getCount('parts') + ' Items in Database';
+            document.getElementById('stat_service').innerText = getCount('service_tasks') + ' Service Types';
+            document.getElementById('stat_schedule').innerText = getCount('jobs') + ' Total Jobs';
+            document.getElementById('stat_history').innerText = getCount('job_logs') + ' Logs Recorded';
+            document.getElementById('stat_invoices').innerText = getCount('invoices') + ' Total Invoices';
+            document.getElementById('stat_mechanics').innerText = getCount('mechanics') + ' Mechanics Onboarded';
+        };
+    </script>
 </body>
 </html>
