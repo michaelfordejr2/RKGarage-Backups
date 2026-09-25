@@ -1,111 +1,74 @@
-function getPortalApp() {
-    return {
-        token: localStorage.getItem('gh_token') || '',
-        owner: localStorage.getItem('gh_owner') || '',
-        isAdmin: localStorage.getItem('is_admin') === 'true',
-        status: 'READY',
-        db: null,
-        counts: { vehicles: 0, parts: 0 },
-        revenue: 0,
-        workshopName: 'R&K AUTO GARAGE',
-        currencySymbol: '£',
-        adminCode: '',
-        garageList: [],
+// Configuration for RKGarage-Backups Repository
+const REPO_OWNER = 'michaelfordejr2';
+const REPO_NAME = 'RKGarage-Backups';
+const DB_FILE_PATH = 'garage_database.db';
+const CHECK_INTERVAL_MS = 30000; // Poll every 30 seconds
 
-        async initShared() {
-            if (!this.token || !this.owner) {
-                const t = prompt('Enter GitHub Token:');
-                const o = prompt('Enter GitHub Username:');
-                if (t && o) {
-                    localStorage.setItem('gh_token', t);
-                    localStorage.setItem('gh_owner', o);
-                    location.reload();
-                }
-                return;
-            }
-            await this.loadSummary();
-            await this.loadDatabase();
-        },
+let SQLModule = null;
+let dbInstance = null;
+let currentCommitSha = null;
 
-        async loadSummary() {
-            try {
-                const resp = await fetch(`https://api.github.com/repos/${this.owner}/RKGarage-Backups/contents/data.json`, {
-                    headers: { 'Authorization': 'token ' + this.token, 'Accept': 'application/vnd.github.v3.raw' }
-                });
-                const data = await resp.json();
-                this.counts.vehicles = data.vehiclesCount;
-                this.counts.parts = data.partsCount;
-                this.revenue = data.revenue;
-                this.workshopName = data.workshopName || 'R&K AUTO GARAGE';
-                this.currencySymbol = data.currencySymbol || '£';
-                this.adminCode = data.adminCode || '';
-            } catch (e) {
-                console.error("Summary load failed", e);
-            }
-        },
-
-        async loadDatabase() {
-            this.status = 'SYNCING...';
-            try {
-                const resp = await fetch(`https://api.github.com/repos/${this.owner}/RKGarage-Backups/contents/backups/garage_database.db`, {
-                    headers: { 'Authorization': 'token ' + this.token, 'Accept': 'application/vnd.github.v3.raw' }
-                });
-                const buf = await resp.arrayBuffer();
-                const SQL = await initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` });
-                this.db = new SQL.Database(new Uint8Array(buf));
-                this.status = 'ACTIVE';
-
-                // Common cache for lists
-                const vData = this.db.exec("SELECT * FROM vehicles ORDER BY regPlate ASC");
-                if (vData.length > 0) {
-                    this.garageList = vData[0].values.map(row => {
-                        let obj = {}; vData[0].columns.forEach((col, i) => obj[col] = row[i]);
-                        return obj;
-                    });
-                }
-            } catch (e) {
-                this.status = 'OFFLINE';
-                console.error("Database load failed", e);
-            }
-        },
-
-        promptAdmin() {
-            const c = prompt('Enter 7-Digit Admin Code:');
-            if (c && c === this.adminCode) {
-                this.isAdmin = true;
-                localStorage.setItem('is_admin', 'true');
-                location.reload();
-            } else {
-                alert('Access Denied');
-            }
-        },
-
-        logout() {
-            localStorage.clear();
-            location.reload();
-        },
-
-        async syncCloud() {
-            this.status = 'SAVING...';
-            const binary = this.db.export();
-            let b64 = btoa(String.fromCharCode(...new Uint8Array(binary)));
-
-            const metaResp = await fetch(`https://api.github.com/repos/${this.owner}/RKGarage-Backups/contents/backups/garage_database.db`, {
-                headers: { 'Authorization': 'token ' + this.token }
-            });
-            const meta = await metaResp.json();
-
-            const res = await fetch(`https://api.github.com/repos/${this.owner}/RKGarage-Backups/contents/backups/garage_database.db`, {
-                method: 'PUT',
-                headers: { 'Authorization': 'token ' + this.token, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: 'Web Portal Edit', content: b64, sha: meta.sha })
-            });
-
-            if (res.ok) {
-                this.status = 'ACTIVE';
-                return true;
-            }
-            return false;
-        }
-    };
+// Initialize sql.js WebAssembly Engine
+async function initEngine() {
+  try {
+    updateStatus('Loading WebAssembly SQLite...', false);
+    SQLModule = await initSqlJs({
+      locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+    });
+    
+    // Initial fetch of the database
+    await fetchAndLoadDatabase();
+    
+    // Start listening for new commits on GitHub
+    startAutoUpdateListener();
+  } catch (err) {
+    console.error('Failed to initialize database engine:', err);
+    updateStatus('Failed to load SQL engine', false);
+  }
 }
+
+// Fetch the database file binary and load it into SQLite
+async function fetchAndLoadDatabase(isManual = false) {
+  try {
+    if (isManual) updateStatus('Busting cache & fetching DB...', false);
+
+    // Cache-busting timestamp query parameter
+    const cacheBuster = `?t=${Date.now()}`;
+    const response = await fetch(`\({DB_FILE_PATH}\){cacheBuster}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    dbInstance = new SQLModule.Database(new Uint8Array(arrayBuffer));
+
+    updateStatus('Connected & Syncing', true);
+    populateTableSelector();
+  } catch (err) {
+    console.error('Error fetching database file:', err);
+    updateStatus('Error loading database file', false);
+  }
+}
+
+// Populate dropdown selector with all user tables inside garage_database.db
+function populateTableSelector() {
+  if (!dbInstance) return;
+
+  const res = dbInstance.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
+  const select = document.getElementById('table-select');
+  select.innerHTML = '';
+
+  if (res.length > 0 && res[0].values.length > 0) {
+    const tables = res[0].values.flat();
+    tables.forEach((tableName, index) => {
+      const option = document.createElement('option');
+      option.value = tableName;
+      option.textContent = tableName;
+      select.appendChild(option);
+    });
+
+    // Automatically render the first table
+    renderTable(tables[0]);
+  } else {
+    document.getElementById('data-table').innerHTML = '
