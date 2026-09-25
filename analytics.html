@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - R&K AUTO GARAGE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="portal.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #1E3A34; --secondary: #2C5E55; --bg: #EDF2F4; }
+        [x-cloak] { display: none !important; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; color: #333; }
+        .sidebar { width: 260px; background: var(--primary); color: #ccc; position: fixed; height: 100vh; display: flex; flex-direction: column; }
+        .main-content { margin-left: 260px; padding: 2rem; min-height: 100vh; }
+        .nav-link { padding: 12px 24px; display: flex; align-items: center; gap: 12px; transition: 0.2s; cursor: pointer; color: #ccc; text-decoration: none; }
+        .nav-link:hover { background: var(--secondary); color: white; }
+        .nav-link.active { background: var(--secondary); color: white; border-left: 4px solid #81C784; }
+    </style>
+</head>
+<body class="flex" x-data="getAnalyticsApp()" x-init="init()">
+    <aside class="sidebar z-50">
+        <div class="p-8 border-b border-white/10">
+            <h1 class="text-xl font-black text-white tracking-tighter">R&K <span class="text-green-400">AUTO</span></h1>
+        </div>
+        <nav class="flex-1 mt-4">
+            <a href="index.html" class="nav-link">Dashboard</a>
+            <a href="garage.html" class="nav-link">Garage</a>
+            <a href="inventory.html" class="nav-link">Inventory</a>
+            <a href="billing.html" class="nav-link">Billing</a>
+            <a href="analytics.html" class="nav-link active">Analytics</a>
+            <a href="printing.html" class="nav-link">Job Cards</a>
+        </nav>
+        <div class="p-6 border-t border-white/10 space-y-2 text-xs font-bold uppercase tracking-widest text-center">
+            <button x-show="!isAdmin" @click="promptAdmin()" class="w-full bg-white/10 p-3 rounded-lg hover:bg-white/20 transition text-white">Admin Access</button>
+            <button x-show="isAdmin" @click="logout()" class="w-full bg-red-900/40 p-3 rounded-lg hover:bg-red-900/60 transition text-white">Exit Session</button>
+        </div>
+    </aside>
+
+    <main class="main-content flex-1">
+        <header class="flex justify-between items-center mb-10">
+            <div>
+                <h2 class="text-3xl font-black text-[#1E3A34] tracking-tight">Business Intelligence</h2>
+                <p class="text-gray-400 text-sm font-bold uppercase tracking-wider" x-text="status"></p>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-400 uppercase text-xs mb-6">Revenue Distribution</h3>
+                <canvas id="revenueChart"></canvas>
+            </div>
+            <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-400 uppercase text-xs mb-6">Top Parts by Inventory</h3>
+                <canvas id="partsChart"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function getAnalyticsApp() {
+            const shared = getPortalApp();
+            return {
+                ...shared,
+                revenueChart: null, partsChart: null,
+
+                async init() {
+                    await this.initShared();
+                    this.renderCharts();
+                },
+
+                renderCharts() {
+                    if (!this.db) return setTimeout(() => this.renderCharts(), 500);
+
+                    const invData = this.db.exec("SELECT SUM(amount) FROM invoices");
+                    const rev = invData[0].values[0][0] || 0;
+
+                    if (this.revenueChart) this.revenueChart.destroy();
+                    this.revenueChart = new Chart(document.getElementById('revenueChart'), {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Generated Revenue', 'Projected'],
+                            datasets: [{
+                                data: [rev, Math.max(10000 - rev, 0)],
+                                backgroundColor: ['#2E7D32', '#F4F6F7']
+                            }]
+                        }
+                    });
+
+                    const partData = this.db.exec("SELECT name, quantity FROM parts ORDER BY quantity DESC LIMIT 5");
+                    if (partData.length > 0) {
+                        if (this.partsChart) this.partsChart.destroy();
+                        this.partsChart = new Chart(document.getElementById('partsChart'), {
+                            type: 'bar',
+                            data: {
+                                labels: partData[0].values.map(v => v[0]),
+                                datasets: [{
+                                    label: 'Stock Quantity',
+                                    data: partData[0].values.map(v => v[1]),
+                                    backgroundColor: '#1E3A34'
+                                }]
+                            },
+                            options: { indexAxis: 'y' }
+                        });
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
