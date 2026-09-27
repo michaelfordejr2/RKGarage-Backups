@@ -194,7 +194,7 @@
                         const username = hostnameParts.length > 2 ? hostnameParts[0] : 'username';
                         const repo = pathParts.length > 0 ? pathParts[0] : 'RKGarage-Backups';
 
-                        const dbUrl = `https://raw.githubusercontent.com/${username}/${repo}/main/backups/garage_database.db`;
+                        const dbUrl = `https://raw.githubusercontent.com/${username}/${repo}/main/garage_database.db`;
 
                         const response = await fetch(dbUrl);
                         if (!response.ok) throw new Error(`Backup not found (${response.status}). Please perform a backup from the RKGarage app.`);
