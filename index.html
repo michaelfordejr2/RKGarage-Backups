@@ -185,11 +185,19 @@
                             locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
                         });
 
-                        this.status = 'Fetching database backup...';
-                        const dbUrl = 'https://raw.githubusercontent.com/username/RKGarage-Backups/main/backups/garage_database.db';
+                        this.status = 'Fetching live database...';
+
+                        // Dynamically determine GitHub username and repository from GitHub Pages URL
+                        const hostnameParts = window.location.hostname.split('.');
+                        const pathParts = window.location.pathname.split('/').filter(Boolean);
+
+                        const username = hostnameParts.length > 2 ? hostnameParts[0] : 'username';
+                        const repo = pathParts.length > 0 ? pathParts[0] : 'RKGarage-Backups';
+
+                        const dbUrl = `https://raw.githubusercontent.com/${username}/${repo}/main/backups/garage_database.db`;
 
                         const response = await fetch(dbUrl);
-                        if (!response.ok) throw new Error('Could not fetch database');
+                        if (!response.ok) throw new Error(`Backup not found (${response.status}). Please perform a backup from the RKGarage app.`);
 
                         const buffer = await response.arrayBuffer();
                         const db = new SQL.Database(new Uint8Array(buffer));
@@ -216,20 +224,21 @@
                         this.stats.mechanicsCount = q("SELECT COUNT(*) FROM mechanics;");
 
                     } catch (e) {
-                        this.status = 'Demo Mode (Local DB required)';
-                        console.warn(e);
+                        this.status = 'Error: ' + e.message;
+                        console.error(e);
+                        // All stats zeroed out — live data only, no demo fallbacks
                         this.stats = {
-                            vehiclesCount: 28,
-                            companiesCount: 115,
-                            individualsCount: 240,
-                            partsCount: 4500,
-                            lowStockCount: 12,
-                            serviceCount: 250,
-                            customersCount: 355,
-                            logsCount: 5800,
-                            pendingInvoices: 5,
-                            totalOwed: 12500,
-                            mechanicsCount: 12
+                            vehiclesCount: 0,
+                            companiesCount: 0,
+                            individualsCount: 0,
+                            partsCount: 0,
+                            lowStockCount: 0,
+                            serviceCount: 0,
+                            customersCount: 0,
+                            logsCount: 0,
+                            pendingInvoices: 0,
+                            totalOwed: 0,
+                            mechanicsCount: 0
                         };
                     }
                 }
