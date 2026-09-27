@@ -25,7 +25,7 @@
         </div>
         <div class="flex items-center gap-4 text-sm text-slate-300">
             <span class="bg-[#1E3A34] px-3 py-1.5 rounded-full text-xs font-bold text-[#38BDF8]" x-text="status">Connecting...</span>
-            <button @click="loadDatabase()" class="bg-[#2C5E55] hover:bg-[#357066] px-3 py-1.5 rounded-xl text-xs font-bold text-white transition">🔄 Refresh DB</button>
+            <button @click="init()" class="bg-[#2C5E55] hover:bg-[#357066] px-3 py-1.5 rounded-xl text-xs font-bold text-white transition">🔄 Refresh DB</button>
         </div>
     </header>
 
@@ -313,10 +313,26 @@
                         const pathParts = window.location.pathname.split('/').filter(Boolean);
                         const username = hostnameParts.length > 2 ? hostnameParts[0] : 'username';
                         const repo = pathParts.length > 0 ? pathParts[0] : 'RKGarage-Backups';
-                        const dbUrl = `https://raw.githubusercontent.com/${username}/${repo}/main/backups/garage_database.db`;
 
-                        const response = await fetch(dbUrl);
-                        if (!response.ok) throw new Error('Backup not found');
+                        const dbUrls = [
+                            './workshop.db',
+                            './backups/garage_database.db',
+                            `https://raw.githubusercontent.com/${username}/${repo}/main/backups/garage_database.db`,
+                            `https://raw.githubusercontent.com/${username}/${repo}/master/backups/garage_database.db`
+                        ];
+
+                        let response = null;
+                        for (const url of dbUrls) {
+                            try {
+                                const res = await fetch(url);
+                                if (res.ok) {
+                                    response = res;
+                                    break;
+                                }
+                            } catch (_) {}
+                        }
+
+                        if (!response) throw new Error('Database backup not found in repository or pages artifact.');
 
                         const buffer = await response.arrayBuffer();
                         const db = new SQL.Database(new Uint8Array(buffer));
@@ -349,7 +365,7 @@
                         this.stats.totalOwed = this.invoices.filter(i => !i.isPaid).reduce((sum, i) => sum + i.amount, 0);
 
                     } catch (e) {
-                        this.status = 'Awaiting Backup (0 records)';
+                        this.status = 'Error: ' + e.message;
                         console.error(e);
                     }
                 },
