@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GARAGEWORKS | R&K Auto Garage Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; background: #F0F4F4; color: #1E293B; }
+        .dashboard-card { background: #FFFFFF; border: 1px solid rgba(226, 232, 240, 0.8); border-radius: 20px; transition: all 0.2s ease; }
+        .dashboard-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px -10px rgba(0,0,0,0.08); }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body x-data="garageDashboard()" x-init="init()" class="min-h-screen pb-16">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-[#11221E] text-white px-8 py-4 flex justify-between items-center shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="bg-[#2C5E55] text-white font-black px-3 py-1.5 rounded-xl text-lg tracking-wider">GW</div>
+            <span class="text-xl font-black tracking-widest uppercase">GARAGEWORKS</span>
+        </div>
+        <div class="flex items-center gap-4 text-sm text-slate-300">
+            <span class="bg-[#1E3A34] px-3 py-1 rounded-full text-xs font-bold text-[#38BDF8]" x-text="status">Connecting...</span>
+            <button class="bg-[#1E3A34] p-2 rounded-full hover:bg-[#2C5E55] transition">🔔</button>
+            <button class="bg-[#1E3A34] p-2 rounded-full hover:bg-[#2C5E55] transition">👤</button>
+            <button class="bg-[#1E3A34] p-2 rounded-full hover:bg-[#2C5E55] transition">⚙️</button>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-6 py-10">
+
+        <!-- Dashboard Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-black tracking-tight text-[#11221E]">WORKSHOP DASHBOARD</h1>
+                <p class="text-slate-500 font-medium text-base mt-1">Good morning, Admin!</p>
+            </div>
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <div class="relative flex-1 md:w-80">
+                    <input type="text" x-model="searchQuery" placeholder="Search workshop records..." class="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2C5E55]">
+                </div>
+                <button class="bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                    <span>Filter</span> ▼
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Cards Grid (Matching Reference Layout) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+            <!-- 1. Garage (Inventory) -->
+            <div class="dashboard-card p-6 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-2xl mb-4">🚗</div>
+                    <h3 class="text-xl font-bold text-[#11221E]">Garage <span class="text-sm font-normal text-slate-400">(Inventory)</span></h3>
+                    <p class="text-slate-500 text-xs mt-2 leading-relaxed">Manage and view all vehicles in your inventory. Track service, status, and details.</p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs font-bold">
+                    <span class="text-slate-700" x-text="(stats.vehiclesCount || 0) + ' Vehicles In-House'"></span>
+                    <span class="text-[#2C5E55] cursor-pointer hover:underline">Go &gt;</span>
+                </div>
+            </div>
+
+            <!-- 2. Owners (Customer List) -->
+            <div class="dashboard-card p-6 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-sky-50 rounded-2xl flex items-center justify-center text-2xl mb-4">👥</div>
+                    <h3 class="text-xl font-bold text-[#11221E]">Owners <span class="text-sm font-normal text-slate-400">(Customer List)</span></h3>
+                    <p class="text-slate-500 text-xs mt-2 leading-relaxed">List all vehicle owners. Grouped by company and individuals.</p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs font-bold">
+                    <span class="text-slate-700" x-text="(stats.companiesCount || 0) + ' Companies, ' + (stats.individualsCount || 0) + ' Individuals'"></span>
+                    <span class="text-[#2C5E55] cursor-pointer hover:underline">Go &gt;</span>
+                </div>
+            </div>
+
+            <!-- 3. Parts (Spares) -->
+            <div class="dashboard-card p-6 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-2xl mb-4">⚙️</div>
+                    <h3 class="text-xl font-bold text-[#11221E]">Parts <span class="text-sm font-normal text-slate-400">(Spares)</span></h3>
+                    <p class="text-slate-500 text-xs mt-2 leading-relaxed">Inventory of all parts, spares, and accessories in your database.</p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs font-bold">
+                    <span class="text-slate-700" x-text="(stats.partsCount || 0) + ' Items | Low Stock: ' + (stats.lowStockCount || 0)"></span>
+                    <span class="text-[#2C5E55] cursor-pointer hover:underline">Go &gt;</span>
+                </div>
+            </div>
+
+            <!-- 4. Service (Operations) -->
+            <div class="dashboard-card p-6 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-2xl mb-4">🔧</div>
+                    <h3 class="text-xl font-bold text-[#11221E]">Service <span class="text-sm font-normal text-slate-400">(Operations)</span></h3>
+                    <p class="text-slate-500 text-xs mt-2 leading-relaxed">Catalogue of service tasks from basic maintenance to complex engine overhauls.</p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs font-bold">
+                    <span class="text-slate-700" x-text="(stats.serviceCount || 0) + ' Service Types'"></span>
+                    <span class="text-[#2C5E55] cursor-pointer hover:underline">Go &gt;</span>
+                </div>
+            </div>
+
+            <!-- 5. Customers (Contacts) -->
+            <div class="dashboard-card p-6 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center text-2xl mb-4">📇</div>
+                    <h3 class="text-xl font-bold text-[#11221E]">Customers <span class="text-sm font-normal text-slate-400">(Contacts)</span></h3>
+                    <p class="text-slate-500 text-xs mt-2 leading-relaxed">Detailed profiles for all customers. Includes contact info and preferences.</p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs font-bold">
+                    <span class="text-slate-700" x-text="(stats.customersCount || 0) + ' Total Contacts'"></span>
+                    <span class="text-[#2C5E55] cursor-pointer hover:underline">Go &gt;</span>
+                </div>
+            </div>
+
+            <!-- 6. History (Logs) -->
+            <div class="dashboard-card p-6 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-2xl mb-4">📋</div>
+                    <h3 class="text-xl font-bold text-[#11221E]">History <span class="text-sm font-normal text-slate-400">(Logs)</span></h3>
+                    <p class="text-slate-500 text-xs mt-2 leading-relaxed">A complete log of all completed works. Search and filter by mechanic and task.</p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs font-bold">
+                    <span class="text-slate-700" x-text="(stats.logsCount || 0) + ' Job Logs'"></span>
+                    <span class="text-[#2C5E55] cursor-pointer hover:underline">Go &gt;</span>
+                </div>
+            </div>
+
+            <!-- 7. Invoices -->
+            <div class="dashboard-card p-6 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-2xl mb-4">📄</div>
+                    <h3 class="text-xl font-bold text-[#11221E]">Invoices</h3>
+                    <p class="text-slate-500 text-xs mt-2 leading-relaxed">Generate, send, and track all customer invoices and payments.</p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs font-bold">
+                    <span class="text-slate-700" x-text="(stats.pendingInvoices || 0) + ' Pending | £' + (stats.totalOwed || 0).toLocaleString() + ' Owed'"></span>
+                    <span class="text-[#2C5E55] cursor-pointer hover:underline">Go &gt;</span>
+                </div>
+            </div>
+
+            <!-- 8. Mechanics (Team) -->
+            <div class="dashboard-card p-6 flex flex-col justify-between">
+                <div>
+                    <div class="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-2xl mb-4">👷</div>
+                    <h3 class="text-xl font-bold text-[#11221E]">Mechanics <span class="text-sm font-normal text-slate-400">(Team)</span></h3>
+                    <p class="text-slate-500 text-xs mt-2 leading-relaxed">Manage your team of mechanics. Track performance, scheduling, and job history.</p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs font-bold">
+                    <span class="text-slate-700" x-text="(stats.mechanicsCount || 0) + ' Mechanics'"></span>
+                    <span class="text-[#2C5E55] cursor-pointer hover:underline">Go &gt;</span>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        function garageDashboard() {
+            return {
+                status: 'Initializing Wasm...',
+                searchQuery: '',
+                stats: {
+                    vehiclesCount: 0,
+                    companiesCount: 0,
+                    individualsCount: 0,
+                    partsCount: 0,
+                    lowStockCount: 0,
+                    serviceCount: 0,
+                    customersCount: 0,
+                    logsCount: 0,
+                    pendingInvoices: 0,
+                    totalOwed: 0,
+                    mechanicsCount: 0
+                },
+                async init() {
+                    try {
+                        this.status = 'Loading SQLite Wasm...';
+                        const SQL = await initSqlJs({
+                            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+                        });
+
+                        this.status = 'Fetching database backup...';
+                        const dbUrl = 'https://raw.githubusercontent.com/username/RKGarage-Backups/main/backups/garage_database.db';
+
+                        const response = await fetch(dbUrl);
+                        if (!response.ok) throw new Error('Could not fetch database');
+
+                        const buffer = await response.arrayBuffer();
+                        const db = new SQL.Database(new Uint8Array(buffer));
+
+                        this.status = 'Live Data Connected';
+
+                        const q = (sql) => {
+                            try {
+                                const res = db.exec(sql);
+                                return res.length > 0 ? res[0].values[0][0] : 0;
+                            } catch (e) { return 0; }
+                        };
+
+                        this.stats.vehiclesCount = q("SELECT COUNT(*) FROM vehicles;");
+                        this.stats.companiesCount = q("SELECT COUNT(*) FROM owners WHERE isCompany = 1;");
+                        this.stats.individualsCount = q("SELECT COUNT(*) FROM owners WHERE isCompany = 0;");
+                        this.stats.partsCount = q("SELECT COUNT(*) FROM parts;");
+                        this.stats.lowStockCount = q("SELECT COUNT(*) FROM parts WHERE quantity <= minThreshold;");
+                        this.stats.serviceCount = q("SELECT COUNT(*) FROM service_tasks;");
+                        this.stats.customersCount = q("SELECT COUNT(*) FROM customers;");
+                        this.stats.logsCount = q("SELECT COUNT(*) FROM job_logs;");
+                        this.stats.pendingInvoices = q("SELECT COUNT(*) FROM invoices WHERE isPaid = 0;");
+                        this.stats.totalOwed = q("SELECT SUM(amount) FROM invoices WHERE isPaid = 0;") || 0;
+                        this.stats.mechanicsCount = q("SELECT COUNT(*) FROM mechanics;");
+
+                    } catch (e) {
+                        this.status = 'Demo Mode (Local DB required)';
+                        console.warn(e);
+                        this.stats = {
+                            vehiclesCount: 28,
+                            companiesCount: 115,
+                            individualsCount: 240,
+                            partsCount: 4500,
+                            lowStockCount: 12,
+                            serviceCount: 250,
+                            customersCount: 355,
+                            logsCount: 5800,
+                            pendingInvoices: 5,
+                            totalOwed: 12500,
+                            mechanicsCount: 12
+                        };
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
