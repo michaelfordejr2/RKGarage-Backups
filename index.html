@@ -796,6 +796,12 @@
                     const lines = this.invoiceLines.filter(l => l.invoiceId === invoice.id);
                     const owner = this.owners.find(o => o.id === invoice.ownerId);
                     const vehicle = this.vehicles.find(v => v.id === invoice.vehicleId);
+                    const job = this.jobs.find(j => j.id === invoice.jobId || j.vehicleId === invoice.vehicleId);
+
+                    const customerSig = (invoice.customerSignature || (job && job.customerSignature) || '');
+                    const customerSigIsImage = customerSig.startsWith('data:image');
+                    const managerSig = (invoice.managerSignature || '');
+                    const managerSigIsImage = managerSig.startsWith('data:image');
 
                     let itemsHtml = '';
                     if (lines.length > 0) {
@@ -810,6 +816,20 @@
                         itemsHtml = '<tr><td colspan="4" style="text-align: center;">Invoice #' + invoice.number + '</td></tr>';
                     }
 
+                    const sigTableHtml = '<table style="width: 100%; margin-top: 40px; border-collapse: collapse;">' +
+                        '<tr><td style="width: 50%; vertical-align: top; padding-right: 15px;">' +
+                        '<div style="border-top: 1px solid #333; padding-top: 8px;">' +
+                        '<small>Customer Signature</small><br>' +
+                        (customerSigIsImage ? '<img src="' + customerSig + '" style="max-width: 180px; max-height: 70px; margin-top: 5px;" /><br>' : '<div style="height: 50px;"></div>') +
+                        '<div style="font-weight: bold; color: #1E3A34; font-size: 0.9em; margin-top: 4px;">' + (customerSig ? '✅ Approved & Signed' : '________________________________') + '</div>' +
+                        '</div></td>' +
+                        '<td style="width: 50%; vertical-align: top; padding-left: 15px;">' +
+                        '<div style="border-top: 1px solid #333; padding-top: 8px;">' +
+                        '<small>Management Signature (R&K Garage)</small><br>' +
+                        (managerSigIsImage ? '<img src="' + managerSig + '" style="max-width: 180px; max-height: 70px; margin-top: 5px;" /><br>' : '<div style="height: 50px;"></div>') +
+                        '<div style="font-weight: bold; color: #1E3A34; font-size: 0.9em; margin-top: 4px;">' + (managerSig ? '✅ Authorized By Management' : '________________________________') + '</div>' +
+                        '</div></td></tr></table>';
+
                     const html = '<html><head><title>Invoice #' + invoice.number + '</title>' +
                         '<style>body { font-family: sans-serif; padding: 30px; color: #333; max-width: 800px; margin: auto; } ' +
                         '.header { text-align: center; border-bottom: 2px solid #1E3A34; padding-bottom: 15px; margin-bottom: 25px; } ' +
@@ -821,7 +841,7 @@
                         '.items th { background: #1E3A34; color: white; padding: 10px; text-align: left; } ' +
                         '.items td { padding: 10px; border-bottom: 1px solid #eee; } ' +
                         '.total { text-align: right; font-size: 1.2em; font-weight: bold; padding-top: 15px; border-top: 2px solid #1E3A34; } ' +
-                        '.footer { margin-top: 60px; text-align: center; font-size: 0.8em; color: #777; } ' +
+                        '.footer { margin-top: 40px; text-align: center; font-size: 0.8em; color: #777; } ' +
                         '@media print { body { padding: 0; } }</style></head><body>' +
                         '<div class="header"><h1>' + (this.businessName || 'R&K Auto Garage') + '</h1>' +
                         '<div class="biz-details">' + (this.businessAddress || '') + '<br>' + (this.businessVat ? 'VAT: ' + this.businessVat : '') + '</div></div>' +
@@ -835,6 +855,7 @@
                         '<th style="text-align: right;">Price</th><th style="text-align: right;">Total</th></tr></thead>' +
                         '<tbody>' + itemsHtml + '</tbody></table>' +
                         '<div class="total">Grand Total: £' + (invoice.amount || 0).toFixed(2) + '</div>' +
+                        sigTableHtml +
                         '<div class="footer"><p>Thank you for your business!</p><p>Payment reference: Invoice #' + invoice.number + '</p></div>' +
                         '<script>window.print();<\/script></body></html>';
 
