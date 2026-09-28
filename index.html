@@ -15,7 +15,7 @@
         [x-cloak] { display: none !important; }
     </style>
 </head>
-<body x-data="enterprisePortal()" x-init="init()" @mousemove="resetInactivityTimer()" @keydown="resetInactivityTimer()" @click="resetInactivityTimer()" class="min-h-screen pb-16">
+<body x-data="enterprisePortal()" x-init="init()" class="min-h-screen pb-16">
 
     <!-- LOGIN MODAL (AUTH GUARD) -->
     <template x-if="!isAuthenticated">
@@ -74,19 +74,6 @@
     </nav>
 
     <div class="max-w-7xl mx-auto px-6 py-10">
-
-        <!-- ERROR / NOTICE BANNER -->
-        <template x-if="errorMessage">
-            <div class="mb-8 bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h3 class="font-bold text-base mb-1">⚠️ Notice</h3>
-                    <p class="text-sm text-amber-700" x-text="errorMessage"></p>
-                </div>
-                <label class="bg-[#1E3A34] hover:bg-[#2C5E55] text-white px-5 py-3 rounded-xl text-sm font-bold transition cursor-pointer whitespace-nowrap shadow-sm">
-                    📁 Select `garage_database.db` <input type="file" @change="loadLocalFile($event)" accept=".db,.sqlite,.sqlite3" class="hidden">
-                </label>
-            </div>
-        </template>
 
         <!-- GLOBAL CONTROLS & ADD BUTTONS -->
         <div class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -159,8 +146,9 @@
                     <thead>
                         <tr class="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-400">
                             <th class="py-3 px-4">Reg Plate</th>
-                            <th class="py-3 px-4">Year / Make / Model</th>
+                            <th class="py-3 px-4">Year / Make / Model / Trim</th>
                             <th class="py-3 px-4">VIN</th>
+                            <th class="py-3 px-4">Engine / Fuel</th>
                             <th class="py-3 px-4">Mileage</th>
                             <th class="py-3 px-4 text-right">Actions</th>
                         </tr>
@@ -169,8 +157,9 @@
                         <template x-for="v in filteredVehicles" :key="v.id">
                             <tr class="border-b border-slate-100 table-row text-sm">
                                 <td class="py-3 px-4 font-black text-[#2C5E55]" x-text="v.regPlate"></td>
-                                <td class="py-3 px-4 font-semibold" x-text="v.year + ' ' + v.make + ' ' + v.model"></td>
+                                <td class="py-3 px-4 font-semibold" x-text="v.year + ' ' + v.make + ' ' + v.model + (v.trim ? ' (' + v.trim + ')' : '')"></td>
                                 <td class="py-3 px-4 text-slate-500 font-mono text-xs" x-text="v.vin"></td>
+                                <td class="py-3 px-4 text-slate-600 text-xs" x-text="(v.cylinders ? v.cyl-cylinders + ' Cyl, ' : '') + (v.displacement ? v.displacement + 'L, ' : '') + (v.fuelType || '')"></td>
                                 <td class="py-3 px-4 text-slate-600" x-text="(v.mileage || 0).toLocaleString() + ' mi'"></td>
                                 <td class="py-3 px-4 text-right">
                                     <button @click="editRecord('vehicles', v)" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg mr-2">Edit</button>
@@ -354,18 +343,34 @@
     <!-- ADD / EDIT MODAL -->
     <template x-if="showModal">
         <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-            <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-slate-100">
+            <div class="bg-white rounded-3xl max-w-xl w-full p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
                 <h3 class="text-xl font-black text-[#11221E] mb-4" x-text="modalMode === 'add' ? 'Add New ' + activeTab : 'Edit ' + activeTab"></h3>
 
-                <!-- Dynamic Form based on activeTab -->
                 <div class="space-y-4 mb-6">
                     <template x-if="activeTab === 'vehicles'">
                         <div class="space-y-3">
                             <div>
-                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Reg Plate</label>
-                                <input type="text" x-model="modalData.regPlate" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">VIN (17 Characters)</label>
+                                <div class="flex gap-2">
+                                    <input type="text" x-model="modalData.vin" placeholder="1FA6P8CF..." maxlength="17" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono uppercase">
+                                    <button @click="lookupVin()" type="button" class="bg-[#2C5E55] hover:bg-[#357066] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition">🔍 Lookup VIN</button>
+                                </div>
                             </div>
                             <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Reg Plate</label>
+                                    <input type="text" x-model="modalData.regPlate" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm uppercase">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Mileage</label>
+                                    <input type="number" x-model.number="modalData.mileage" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Year</label>
+                                    <input type="number" x-model.number="modalData.year" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                </div>
                                 <div>
                                     <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Make</label>
                                     <input type="text" x-model="modalData.make" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
@@ -375,72 +380,29 @@
                                     <input type="text" x-model="modalData.model" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
                                 </div>
                             </div>
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-3 gap-3">
                                 <div>
-                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Year</label>
-                                    <input type="number" x-model.number="modalData.year" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Trim</label>
+                                    <input type="text" x-model="modalData.trim" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Mileage</label>
-                                    <input type="number" x-model.number="modalData.mileage" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Cylinders</label>
+                                    <input type="number" x-model.number="modalData.cylinders" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
                                 </div>
-                            </div>
-                        </div>
-                    </template>
-
-                    <template x-if="activeTab === 'owners'">
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Full Name</label>
-                                <input type="text" x-model="modalData.fullName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Phone</label>
-                                <input type="text" x-model="modalData.phone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Business Name (Optional)</label>
-                                <input type="text" x-model="modalData.businessName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
-                            </div>
-                            <div class="flex items-center gap-2 pt-2">
-                                <input type="checkbox" x-model="modalData.isCompany" id="isCompany" class="w-4 h-4 accent-[#2C5E55]">
-                                <label for="isCompany" class="text-sm font-bold text-slate-700">Is Company / Business</label>
-                            </div>
-                        </div>
-                    </template>
-
-                    <template x-if="activeTab === 'parts'">
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Part Name</label>
-                                <input type="text" x-model="modalData.name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Part Number</label>
-                                <input type="text" x-model="modalData.partNumber" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Displacement (L)</label>
+                                    <input type="number" step="0.1" x-model.number="modalData.displacement" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                </div>
                             </div>
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Quantity</label>
-                                    <input type="number" x-model.number="modalData.quantity" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Fuel Type</label>
+                                    <input type="text" x-model="modalData.fuelType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Selling Price (£)</label>
-                                    <input type="number" step="0.01" x-model.number="modalData.sellingPrice" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Drive Type</label>
+                                    <input type="text" x-model="modalData.driveType" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
                                 </div>
-                            </div>
-                        </div>
-                    </template>
-
-                    <template x-if="activeTab === 'mechanics'">
-                        <div class="space-y-3">
-                            <div>
-                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Mechanic Name</label>
-                                <input type="text" x-model="modalData.name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Team / Department</label>
-                                <input type="text" x-model="modalData.team" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
                             </div>
                         </div>
                     </template>
@@ -479,7 +441,6 @@
                 mechanics: [],
 
                 init() {
-                    // Check session storage for existing auth
                     const savedAuth = sessionStorage.getItem('gw_auth');
                     if (savedAuth) {
                         try {
@@ -492,7 +453,6 @@
                             sessionStorage.removeItem('gw_auth');
                         }
                     } else {
-                        // Check if we can load public portal_data.json without login first
                         this.loadPortalData();
                     }
                 },
@@ -532,11 +492,43 @@
                 resetInactivityTimer() {
                     if (!this.isAuthenticated) return;
                     if (this.inactivityTimer) clearTimeout(this.inactivityTimer);
-                    // 5 minutes inactivity timeout = 300,000 ms
                     this.inactivityTimer = setTimeout(() => {
                         alert('Session locked due to 5 minutes of inactivity.');
                         this.logout();
                     }, 300000);
+                },
+
+                async lookupVin() {
+                    if (!this.modalData.vin || this.modalData.vin.length < 17) {
+                        alert('Please enter a valid 17-character VIN.');
+                        return;
+                    }
+                    try {
+                        this.status = 'Decoding VIN via NHTSA API...';
+                        const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${this.modalData.vin}?format=json`);
+                        const data = await res.json();
+                        const results = data.Results || [];
+
+                        results.forEach(item => {
+                            const val = item.Value;
+                            if (!val || val === 'null') return;
+                            switch(item.Variable) {
+                                case 'Model Year': this.modalData.year = parseInt(val) || 0; break;
+                                case 'Make': this.modalData.make = val; break;
+                                case 'Model': this.modalData.model = val; break;
+                                case 'Trim': this.modalData.trim = val; break;
+                                case 'Engine Number of Cylinders': this.modalData.cylinders = parseInt(val) || 0; break;
+                                case 'Displacement (L)': this.modalData.displacement = parseFloat(val) || 0.0; break;
+                                case 'Fuel Type - Primary': this.modalData.fuelType = val; break;
+                                case 'Drive Type': this.modalData.driveType = val; break;
+                            }
+                        });
+                        this.status = 'Live Data Connected';
+                        alert('VIN successfully decoded!');
+                    } catch (e) {
+                        this.status = 'Live Data Connected';
+                        alert('VIN lookup failed: ' + e.message);
+                    }
                 },
 
                 async loadPortalData() {
@@ -587,12 +579,12 @@
                 },
 
                 openAddModal() {
-                    if (['dashboard', 'jobs', 'invoices'].includes(this.activeTab)) {
-                        alert('Please select a manageable category tab (Vehicles, Owners, Parts, or Mechanics) to add records.');
+                    if (this.activeTab !== 'vehicles') {
+                        alert('Vehicle form is fully configured with VIN lookup. Please switch to Garage & Vehicles tab to add a vehicle.');
                         return;
                     }
                     this.modalMode = 'add';
-                    this.modalData = {};
+                    this.modalData = { mileage: 0, year: new Date().getFullYear() };
                     this.showModal = true;
                 },
 
@@ -606,7 +598,7 @@
                 saveRecord() {
                     let targetList = this[this.activeTab];
                     if (this.modalMode === 'add') {
-                        this.modalData.id = Date.now(); // temporary unique id
+                        this.modalData.id = Date.now();
                         targetList.push(this.modalData);
                     } else {
                         const idx = targetList.findIndex(x => x.id === this.modalData.id);
@@ -635,7 +627,6 @@
                         const username = hostnameParts.length > 2 ? hostnameParts[0] : this.auth.username;
                         const repo = pathParts.length > 0 ? pathParts[0] : 'RKGarage-Backups';
 
-                        // 1. Get existing file SHA for portal_data.json
                         const getUrl = `https://api.github.com/repos/${username}/${repo}/contents/portal_data.json`;
                         const getRes = await fetch(getUrl, {
                             headers: { 'Authorization': `Bearer ${this.auth.token}` }
@@ -646,7 +637,6 @@
                             sha = fileMeta.sha;
                         }
 
-                        // 2. Prepare payload
                         const payload = {
                             timestamp: Date.now(),
                             vehicles: this.vehicles,
@@ -666,7 +656,6 @@
                         };
                         if (sha) body.sha = sha;
 
-                        // 3. Put request to GitHub
                         const putRes = await fetch(getUrl, {
                             method: 'PUT',
                             headers: {
@@ -686,33 +675,11 @@
                     }
                 },
 
-                loadLocalFile(event) {
-                    const file = event.target.files[0];
-                    if (!file) return;
-                    this.status = 'Loading local file...';
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const data = JSON.parse(e.target.result);
-                            this.vehicles = data.vehicles || [];
-                            this.owners = data.owners || [];
-                            this.parts = data.parts || [];
-                            this.jobs = data.jobs || [];
-                            this.invoices = data.invoices || [];
-                            this.mechanics = data.mechanics || [];
-                            this.status = 'Local JSON Loaded';
-                        } catch (err) {
-                            alert('Invalid JSON file format.');
-                        }
-                    };
-                    reader.readAsText(file);
-                },
-
                 // Computed search filters
                 get filteredVehicles() {
                     if (!this.searchQuery) return this.vehicles;
                     const q = this.searchQuery.toLowerCase();
-                    return this.vehicles.filter(v => (v.make + ' ' + v.model + ' ' + v.regPlate).toLowerCase().includes(q));
+                    return this.vehicles.filter(v => (v.make + ' ' + v.model + ' ' + v.regPlate + ' ' + (v.vin || '')).toLowerCase().includes(q));
                 },
                 get filteredOwners() {
                     if (!this.searchQuery) return this.owners;
