@@ -15,19 +15,50 @@
         [x-cloak] { display: none !important; }
     </style>
 </head>
-<body x-data="enterprisePortal()" x-init="init()" class="min-h-screen pb-16">
+<body x-data="enterprisePortal()" x-init="init()" @mousemove="resetInactivityTimer()" @keydown="resetInactivityTimer()" @click="resetInactivityTimer()" class="min-h-screen pb-16">
+
+    <!-- LOGIN MODAL (AUTH GUARD) -->
+    <template x-if="!isAuthenticated">
+        <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-6">
+            <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-slate-100">
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 bg-[#2C5E55] text-white font-black rounded-2xl mx-auto flex items-center justify-center text-2xl mb-3 shadow-lg">GW</div>
+                    <h2 class="text-2xl font-black text-[#11221E]">GARAGEWORKS PORTAL</h2>
+                    <p class="text-slate-500 text-xs mt-1">Authenticate with your GitHub credentials to access enterprise controls.</p>
+                </div>
+                <form @submit.prevent="authenticateUser()" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">GitHub Username</label>
+                        <input type="text" x-model="auth.username" required placeholder="e.g. johndoe" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2C5E55]">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">GitHub Personal Access Token (PAT)</label>
+                        <input type="password" x-model="auth.token" required placeholder="ghp_xxxxxxxxxxxx" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2C5E55]">
+                        <p class="text-[11px] text-slate-400 mt-1">Token requires `repo` scope to read/write backups.</p>
+                    </div>
+                    <div class="pt-2">
+                        <button type="submit" class="w-full bg-[#1E3A34] hover:bg-[#2C5E55] text-white font-bold py-3.5 rounded-xl text-sm transition shadow-lg">
+                            Secure Login
+                        </button>
+                    </div>
+                    <template x-if="authError">
+                        <p class="text-xs text-red-600 font-bold text-center mt-2" x-text="authError"></p>
+                    </template>
+                </form>
+            </div>
+        </div>
+    </template>
 
     <!-- Top Navigation Bar -->
-    <header class="bg-[#11221E] text-white px-8 py-4 flex justify-between items-center shadow-md sticky top-0 z-50">
+    <header class="bg-[#11221E] text-white px-8 py-4 flex justify-between items-center shadow-md sticky top-0 z-40">
         <div class="flex items-center gap-3">
             <div class="bg-[#2C5E55] text-white font-black px-3 py-1.5 rounded-xl text-lg tracking-wider">GW</div>
             <span class="text-xl font-black tracking-widest uppercase">GARAGEWORKS ENTERPRISE</span>
         </div>
         <div class="flex items-center gap-4 text-sm text-slate-300">
             <span class="bg-[#1E3A34] px-3 py-1.5 rounded-full text-xs font-bold text-[#38BDF8]" x-text="status">Connecting...</span>
-            <label class="bg-[#2C5E55] hover:bg-[#357066] px-3 py-1.5 rounded-xl text-xs font-bold text-white transition cursor-pointer">
-                📁 Load .db File <input type="file" @change="loadLocalFile($event)" accept=".db,.sqlite,.sqlite3" class="hidden">
-            </label>
+            <button @click="syncToGitHub()" class="bg-[#38BDF8] hover:bg-[#0284c7] px-4 py-1.5 rounded-xl text-xs font-black text-slate-900 transition shadow-sm">☁️ Sync to GitHub</button>
+            <button @click="logout()" class="bg-red-900/50 hover:bg-red-800 px-3 py-1.5 rounded-xl text-xs font-bold text-red-200 transition">Lock Session</button>
         </div>
     </header>
 
@@ -44,11 +75,11 @@
 
     <div class="max-w-7xl mx-auto px-6 py-10">
 
-        <!-- ERROR / BACKUP NOTICE BANNER -->
+        <!-- ERROR / NOTICE BANNER -->
         <template x-if="errorMessage">
             <div class="mb-8 bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h3 class="font-bold text-base mb-1">⚠️ Portal Data Still Syncing</h3>
+                    <h3 class="font-bold text-base mb-1">⚠️ Notice</h3>
                     <p class="text-sm text-amber-700" x-text="errorMessage"></p>
                 </div>
                 <label class="bg-[#1E3A34] hover:bg-[#2C5E55] text-white px-5 py-3 rounded-xl text-sm font-bold transition cursor-pointer whitespace-nowrap shadow-sm">
@@ -57,13 +88,15 @@
             </div>
         </template>
 
-        <!-- GLOBAL SEARCH & CONTROLS -->
+        <!-- GLOBAL CONTROLS & ADD BUTTONS -->
         <div class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="w-full md:w-96">
                 <input type="text" x-model="searchQuery" placeholder="Search current view..." class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2C5E55] shadow-sm">
             </div>
-            <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                Live Enterprise Portal Active
+            <div class="flex items-center gap-3">
+                <button @click="openAddModal()" class="bg-[#2C5E55] hover:bg-[#357066] text-white px-5 py-3 rounded-xl text-sm font-bold transition shadow-sm flex items-center gap-2">
+                    <span>+ Add New Record</span>
+                </button>
             </div>
         </div>
 
@@ -76,7 +109,7 @@
                     <p class="text-slate-500 text-xs mt-1">Vehicles in inventory</p>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
-                    <span class="text-2xl font-black text-[#11221E]" x-text="stats.vehiclesCount"></span>
+                    <span class="text-2xl font-black text-[#11221E]" x-text="vehicles.length"></span>
                     <button @click="activeTab = 'vehicles'" class="text-xs font-bold text-[#2C5E55] hover:underline">View All &gt;</button>
                 </div>
             </div>
@@ -88,7 +121,7 @@
                     <p class="text-slate-500 text-xs mt-1">Customers & Companies</p>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
-                    <span class="text-2xl font-black text-[#11221E]" x-text="stats.ownersCount"></span>
+                    <span class="text-2xl font-black text-[#11221E]" x-text="owners.length"></span>
                     <button @click="activeTab = 'owners'" class="text-xs font-bold text-[#2C5E55] hover:underline">View All &gt;</button>
                 </div>
             </div>
@@ -100,7 +133,7 @@
                     <p class="text-slate-500 text-xs mt-1">Stocked items & spares</p>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
-                    <span class="text-2xl font-black text-[#11221E]" x-text="stats.partsCount"></span>
+                    <span class="text-2xl font-black text-[#11221E]" x-text="parts.length"></span>
                     <button @click="activeTab = 'parts'" class="text-xs font-bold text-[#2C5E55] hover:underline">View All &gt;</button>
                 </div>
             </div>
@@ -112,7 +145,7 @@
                     <p class="text-slate-500 text-xs mt-1">Unpaid / Total Owed</p>
                 </div>
                 <div class="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center">
-                    <span class="text-2xl font-black text-[#11221E]" x-text="'£' + (stats.totalOwed || 0).toLocaleString()"></span>
+                    <span class="text-2xl font-black text-[#11221E]" x-text="'£' + invoices.filter(i => !i.isPaid).reduce((s,i)=>s+i.amount,0).toLocaleString()"></span>
                     <button @click="activeTab = 'invoices'" class="text-xs font-bold text-[#2C5E55] hover:underline">View All &gt;</button>
                 </div>
             </div>
@@ -125,23 +158,24 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-400">
-                            <th class="py-3 px-4">ID</th>
                             <th class="py-3 px-4">Reg Plate</th>
                             <th class="py-3 px-4">Year / Make / Model</th>
                             <th class="py-3 px-4">VIN</th>
                             <th class="py-3 px-4">Mileage</th>
-                            <th class="py-3 px-4">Owner</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <template x-for="v in filteredVehicles" :key="v.id">
                             <tr class="border-b border-slate-100 table-row text-sm">
-                                <td class="py-3 px-4 font-bold text-slate-600" x-text="v.id"></td>
                                 <td class="py-3 px-4 font-black text-[#2C5E55]" x-text="v.regPlate"></td>
                                 <td class="py-3 px-4 font-semibold" x-text="v.year + ' ' + v.make + ' ' + v.model"></td>
                                 <td class="py-3 px-4 text-slate-500 font-mono text-xs" x-text="v.vin"></td>
                                 <td class="py-3 px-4 text-slate-600" x-text="(v.mileage || 0).toLocaleString() + ' mi'"></td>
-                                <td class="py-3 px-4 text-slate-700" x-text="v.ownerNameDisplay || 'N/A'"></td>
+                                <td class="py-3 px-4 text-right">
+                                    <button @click="editRecord('vehicles', v)" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg mr-2">Edit</button>
+                                    <button @click="deleteRecord('vehicles', v.id)" class="text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg">Delete</button>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -160,6 +194,7 @@
                             <th class="py-3 px-4">Type</th>
                             <th class="py-3 px-4">Business Name</th>
                             <th class="py-3 px-4">Phone</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -171,6 +206,10 @@
                                 </td>
                                 <td class="py-3 px-4 text-slate-600" x-text="o.businessName || '-'"></td>
                                 <td class="py-3 px-4 font-mono text-xs text-slate-700" x-text="o.phone"></td>
+                                <td class="py-3 px-4 text-right">
+                                    <button @click="editRecord('owners', o)" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg mr-2">Edit</button>
+                                    <button @click="deleteRecord('owners', o.id)" class="text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg">Delete</button>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -189,6 +228,7 @@
                             <th class="py-3 px-4">Part Number</th>
                             <th class="py-3 px-4">Quantity</th>
                             <th class="py-3 px-4">Selling Price</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -200,6 +240,10 @@
                                     <span class="px-2.5 py-1 rounded-full text-xs font-bold" :class="p.quantity <= p.minThreshold ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'" x-text="p.quantity"></span>
                                 </td>
                                 <td class="py-3 px-4 font-bold text-slate-800" x-text="'£' + (p.sellingPrice || 0).toFixed(2)"></td>
+                                <td class="py-3 px-4 text-right">
+                                    <button @click="editRecord('parts', p)" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg mr-2">Edit</button>
+                                    <button @click="deleteRecord('parts', p.id)" class="text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg">Delete</button>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -218,6 +262,7 @@
                             <th class="py-3 px-4">Status</th>
                             <th class="py-3 px-4">Vehicle ID</th>
                             <th class="py-3 px-4">Total Price</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -229,6 +274,10 @@
                                 </td>
                                 <td class="py-3 px-4 text-slate-700" x-text="j.vehicleId"></td>
                                 <td class="py-3 px-4 font-black text-[#2C5E55]" x-text="'£' + (j.totalPrice || 0).toFixed(2)"></td>
+                                <td class="py-3 px-4 text-right">
+                                    <button @click="editRecord('jobs', j)" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg mr-2">Edit</button>
+                                    <button @click="deleteRecord('jobs', j.id)" class="text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg">Delete</button>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -246,6 +295,7 @@
                             <th class="py-3 px-4">Invoice #</th>
                             <th class="py-3 px-4">Amount</th>
                             <th class="py-3 px-4">Status</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -255,6 +305,10 @@
                                 <td class="py-3 px-4 font-bold text-slate-800" x-text="'£' + (i.amount || 0).toFixed(2)"></td>
                                 <td class="py-3 px-4">
                                     <span class="px-2.5 py-1 rounded-full text-xs font-bold" :class="i.isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'" x-text="i.isPaid ? 'Paid' : 'Pending'"></span>
+                                </td>
+                                <td class="py-3 px-4 text-right">
+                                    <button @click="editRecord('invoices', i)" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg mr-2">Edit</button>
+                                    <button @click="deleteRecord('invoices', i.id)" class="text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg">Delete</button>
                                 </td>
                             </tr>
                         </template>
@@ -273,6 +327,7 @@
                             <th class="py-3 px-4">ID</th>
                             <th class="py-3 px-4">Mechanic Name</th>
                             <th class="py-3 px-4">Team / Department</th>
+                            <th class="py-3 px-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -283,6 +338,10 @@
                                 <td class="py-3 px-4">
                                     <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700" x-text="m.team"></span>
                                 </td>
+                                <td class="py-3 px-4 text-right">
+                                    <button @click="editRecord('mechanics', m)" class="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg mr-2">Edit</button>
+                                    <button @click="deleteRecord('mechanics', m.id)" class="text-xs font-bold bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg">Delete</button>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -292,6 +351,109 @@
 
     </div>
 
+    <!-- ADD / EDIT MODAL -->
+    <template x-if="showModal">
+        <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+            <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl border border-slate-100">
+                <h3 class="text-xl font-black text-[#11221E] mb-4" x-text="modalMode === 'add' ? 'Add New ' + activeTab : 'Edit ' + activeTab"></h3>
+
+                <!-- Dynamic Form based on activeTab -->
+                <div class="space-y-4 mb-6">
+                    <template x-if="activeTab === 'vehicles'">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Reg Plate</label>
+                                <input type="text" x-model="modalData.regPlate" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Make</label>
+                                    <input type="text" x-model="modalData.make" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Model</label>
+                                    <input type="text" x-model="modalData.model" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Year</label>
+                                    <input type="number" x-model.number="modalData.year" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Mileage</label>
+                                    <input type="number" x-model.number="modalData.mileage" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="activeTab === 'owners'">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Full Name</label>
+                                <input type="text" x-model="modalData.fullName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Phone</label>
+                                <input type="text" x-model="modalData.phone" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Business Name (Optional)</label>
+                                <input type="text" x-model="modalData.businessName" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div class="flex items-center gap-2 pt-2">
+                                <input type="checkbox" x-model="modalData.isCompany" id="isCompany" class="w-4 h-4 accent-[#2C5E55]">
+                                <label for="isCompany" class="text-sm font-bold text-slate-700">Is Company / Business</label>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="activeTab === 'parts'">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Part Name</label>
+                                <input type="text" x-model="modalData.name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Part Number</label>
+                                <input type="text" x-model="modalData.partNumber" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Quantity</label>
+                                    <input type="number" x-model.number="modalData.quantity" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Selling Price (£)</label>
+                                    <input type="number" step="0.01" x-model.number="modalData.sellingPrice" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="activeTab === 'mechanics'">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Mechanic Name</label>
+                                <input type="text" x-model="modalData.name" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Team / Department</label>
+                                <input type="text" x-model="modalData.team" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm">
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="flex gap-3">
+                    <button @click="saveRecord()" class="flex-1 bg-[#1E3A34] hover:bg-[#2C5E55] text-white font-bold py-3 rounded-xl text-sm transition">Save Changes</button>
+                    <button @click="showModal = false" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-sm transition">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
     <script>
         function enterprisePortal() {
             return {
@@ -299,6 +461,15 @@
                 errorMessage: '',
                 activeTab: 'dashboard',
                 searchQuery: '',
+                isAuthenticated: false,
+                auth: { username: '', token: '' },
+                authError: '',
+                inactivityTimer: null,
+
+                showModal: false,
+                modalMode: 'add',
+                modalData: {},
+
                 stats: { vehiclesCount: 0, ownersCount: 0, partsCount: 0, totalOwed: 0 },
                 vehicles: [],
                 owners: [],
@@ -307,9 +478,70 @@
                 invoices: [],
                 mechanics: [],
 
-                async init() {
+                init() {
+                    // Check session storage for existing auth
+                    const savedAuth = sessionStorage.getItem('gw_auth');
+                    if (savedAuth) {
+                        try {
+                            const parsed = JSON.parse(savedAuth);
+                            this.auth = parsed;
+                            this.isAuthenticated = true;
+                            this.startInactivityTimer();
+                            this.loadPortalData();
+                        } catch (e) {
+                            sessionStorage.removeItem('gw_auth');
+                        }
+                    } else {
+                        // Check if we can load public portal_data.json without login first
+                        this.loadPortalData();
+                    }
+                },
+
+                async authenticateUser() {
+                    this.authError = '';
                     try {
-                        this.status = 'Fetching portal_data.json...';
+                        const res = await fetch('https://api.github.com/user', {
+                            headers: { 'Authorization': `Bearer ${this.auth.token}` }
+                        });
+                        if (!res.ok) throw new Error('Invalid GitHub token or unauthorized.');
+                        const user = await res.json();
+                        if (user.login.toLowerCase() !== this.auth.username.toLowerCase()) {
+                            throw new Error('Token does not match GitHub username.');
+                        }
+
+                        sessionStorage.setItem('gw_auth', JSON.stringify(this.auth));
+                        this.isAuthenticated = true;
+                        this.startInactivityTimer();
+                        this.loadPortalData();
+                    } catch (e) {
+                        this.authError = e.message;
+                    }
+                },
+
+                logout() {
+                    sessionStorage.removeItem('gw_auth');
+                    this.isAuthenticated = false;
+                    this.auth = { username: '', token: '' };
+                    if (this.inactivityTimer) clearTimeout(this.inactivityTimer);
+                },
+
+                startInactivityTimer() {
+                    this.resetInactivityTimer();
+                },
+
+                resetInactivityTimer() {
+                    if (!this.isAuthenticated) return;
+                    if (this.inactivityTimer) clearTimeout(this.inactivityTimer);
+                    // 5 minutes inactivity timeout = 300,000 ms
+                    this.inactivityTimer = setTimeout(() => {
+                        alert('Session locked due to 5 minutes of inactivity.');
+                        this.logout();
+                    }, 300000);
+                },
+
+                async loadPortalData() {
+                    try {
+                        this.status = 'Fetching portal data...';
                         const hostnameParts = window.location.hostname.split('.');
                         const pathParts = window.location.pathname.split('/').filter(Boolean);
                         const username = hostnameParts.length > 2 ? hostnameParts[0] : 'username';
@@ -333,8 +565,8 @@
                         }
 
                         if (!response) {
-                            this.errorMessage = 'portal_data.json is still syncing (staged 3-minute rollout). Please wait a moment and refresh, or select your database file manually using the button on the right.';
-                            this.status = 'Awaiting Sync';
+                            this.errorMessage = 'portal_data.json not found yet. Please wait for sync or upload database manually.';
+                            this.status = 'Awaiting Data';
                             return;
                         }
 
@@ -346,19 +578,111 @@
                         this.invoices = data.invoices || [];
                         this.mechanics = data.mechanics || [];
 
-                        this.stats.vehiclesCount = this.vehicles.length;
-                        this.stats.ownersCount = this.owners.length;
-                        this.stats.partsCount = this.parts.length;
-                        this.stats.totalOwer = this.invoices.filter(i => !i.isPaid).reduce((sum, i) => sum + i.amount, 0); // fixed spelling
-                        this.stats.totalOwed = this.stats.totalOwer;
-
                         this.status = 'Live Data Connected';
                         this.errorMessage = '';
-
                     } catch (e) {
-                        this.status = 'Error loading portal data';
+                        this.status = 'Error loading data';
                         this.errorMessage = e.message;
-                        console.error(e);
+                    }
+                },
+
+                openAddModal() {
+                    if (['dashboard', 'jobs', 'invoices'].includes(this.activeTab)) {
+                        alert('Please select a manageable category tab (Vehicles, Owners, Parts, or Mechanics) to add records.');
+                        return;
+                    }
+                    this.modalMode = 'add';
+                    this.modalData = {};
+                    this.showModal = true;
+                },
+
+                editRecord(type, record) {
+                    this.activeTab = type;
+                    this.modalMode = 'edit';
+                    this.modalData = { ...record };
+                    this.showModal = true;
+                },
+
+                saveRecord() {
+                    let targetList = this[this.activeTab];
+                    if (this.modalMode === 'add') {
+                        this.modalData.id = Date.now(); // temporary unique id
+                        targetList.push(this.modalData);
+                    } else {
+                        const idx = targetList.findIndex(x => x.id === this.modalData.id);
+                        if (idx !== -1) targetList[idx] = { ...this.modalData };
+                    }
+                    this.showModal = false;
+                    alert('Record updated locally. Click "☁️ Sync to GitHub" to save changes to the cloud database.');
+                },
+
+                deleteRecord(type, id) {
+                    if (!confirm('Are you sure you want to delete this record?')) return;
+                    this[type] = this[type].filter(x => x.id !== id);
+                    alert('Record deleted locally. Click "☁️ Sync to GitHub" to commit changes to the cloud database.');
+                },
+
+                async syncToGitHub() {
+                    if (!this.isAuthenticated) {
+                        alert('Please authenticate to sync changes to GitHub.');
+                        return;
+                    }
+
+                    this.status = 'Syncing to GitHub...';
+                    try {
+                        const hostnameParts = window.location.hostname.split('.');
+                        const pathParts = window.location.pathname.split('/').filter(Boolean);
+                        const username = hostnameParts.length > 2 ? hostnameParts[0] : this.auth.username;
+                        const repo = pathParts.length > 0 ? pathParts[0] : 'RKGarage-Backups';
+
+                        // 1. Get existing file SHA for portal_data.json
+                        const getUrl = `https://api.github.com/repos/${username}/${repo}/contents/portal_data.json`;
+                        const getRes = await fetch(getUrl, {
+                            headers: { 'Authorization': `Bearer ${this.auth.token}` }
+                        });
+                        let sha = null;
+                        if (getRes.ok) {
+                            const fileMeta = await getRes.json();
+                            sha = fileMeta.sha;
+                        }
+
+                        // 2. Prepare payload
+                        const payload = {
+                            timestamp: Date.now(),
+                            vehicles: this.vehicles,
+                            owners: this.owners,
+                            parts: this.parts,
+                            jobs: this.jobs,
+                            invoices: this.invoices,
+                            mechanics: this.mechanics
+                        };
+
+                        const jsonString = JSON.stringify(payload, null, 2);
+                        const base64Content = btoa(unescape(encodeURIComponent(jsonString)));
+
+                        const body = {
+                            message: `Enterprise Portal Update: ${new Date().toISOString()}`,
+                            content: base64Content
+                        };
+                        if (sha) body.sha = sha;
+
+                        // 3. Put request to GitHub
+                        const putRes = await fetch(getUrl, {
+                            method: 'PUT',
+                            headers: {
+                                'Authorization': `Bearer ${this.auth.token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(body)
+                        });
+
+                        if (!putRes.ok) throw new Error('GitHub sync failed: ' + putRes.statusText);
+
+                        this.status = 'GitHub Sync Successful!';
+                        alert('All changes successfully committed and synced to GitHub!');
+                    } catch (e) {
+                        this.status = 'Sync Failed';
+                        alert('Error syncing to GitHub: ' + e.message);
                     }
                 },
 
@@ -366,100 +690,54 @@
                     const file = event.target.files[0];
                     if (!file) return;
                     this.status = 'Loading local file...';
-                    this.errorMessage = '';
                     const reader = new FileReader();
-                    reader.onload = async (e) => {
+                    reader.onload = (e) => {
                         try {
-                            const SQL = await initSqlJs({
-                                locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
-                            });
-                            const buffer = e.target.result;
-                            const db = new SQL.Database(new Uint8Array(buffer));
-
-                            const safeQueryAll = (sql) => {
-                                try {
-                                    const res = db.exec(sql);
-                                    if (res.length === 0 || !res[0].values) return [];
-                                    const cols = res[0].columns;
-                                    return res[0].values.map(row => {
-                                        let obj = {};
-                                        cols.forEach((col, idx) => obj[col] = row[idx]);
-                                        return obj;
-                                    });
-                                } catch (e) { return []; }
-                            };
-
-                            this.vehicles = safeQueryAll("SELECT * FROM vehicles;");
-                            this.owners = safeQueryAll("SELECT * FROM owners;");
-                            this.parts = safeQueryAll("SELECT * FROM parts;");
-                            this.jobs = safeQueryAll("SELECT * FROM jobs;");
-                            this.invoices = safeQueryAll("SELECT * FROM invoices;");
-                            this.mechanics = safeQueryAll("SELECT * FROM mechanics;");
-
-                            this.stats.vehiclesCount = this.vehicles.length;
-                            this.stats.ownersCount = this.owners.length;
-                            this.stats.partsCount = this.parts.length;
-                            this.stats.totalOwed = this.invoices.filter(i => !i.isPaid).reduce((sum, i) => sum + i.amount, 0);
-
-                            this.status = 'Local Database Loaded';
-                            this.errorMessage = '';
+                            const data = JSON.parse(e.target.result);
+                            this.vehicles = data.vehicles || [];
+                            this.owners = data.owners || [];
+                            this.parts = data.parts || [];
+                            this.jobs = data.jobs || [];
+                            this.invoices = data.invoices || [];
+                            this.mechanics = data.mechanics || [];
+                            this.status = 'Local JSON Loaded';
                         } catch (err) {
-                            this.status = 'Error parsing DB';
-                            this.errorMessage = err.message;
+                            alert('Invalid JSON file format.');
                         }
                     };
-                    reader.readAsArrayBuffer(file);
+                    reader.readAsText(file);
                 },
 
-                // Computed filters for search query
+                // Computed search filters
                 get filteredVehicles() {
                     if (!this.searchQuery) return this.vehicles;
                     const q = this.searchQuery.toLowerCase();
-                    return this.vehicles.filter(v =>
-                        (v.make && v.make.toLowerCase().includes(q)) ||
-                        (v.model && v.model.toLowerCase().includes(q)) ||
-                        (v.regPlate && v.regPlate.toLowerCase().includes(q)) ||
-                        (v.vin && v.vin.toLowerCase().includes(q))
-                    );
+                    return this.vehicles.filter(v => (v.make + ' ' + v.model + ' ' + v.regPlate).toLowerCase().includes(q));
                 },
                 get filteredOwners() {
                     if (!this.searchQuery) return this.owners;
                     const q = this.searchQuery.toLowerCase();
-                    return this.owners.filter(o =>
-                        (o.fullName && o.fullName.toLowerCase().includes(q)) ||
-                        (o.phone && o.phone.toLowerCase().includes(q)) ||
-                        (o.businessName && o.businessName.toLowerCase().includes(q))
-                    );
+                    return this.owners.filter(o => (o.fullName + ' ' + o.phone).toLowerCase().includes(q));
                 },
                 get filteredParts() {
                     if (!this.searchQuery) return this.parts;
                     const q = this.searchQuery.toLowerCase();
-                    return this.parts.filter(p =>
-                        (p.name && p.name.toLowerCase().includes(q)) ||
-                        (p.partNumber && p.partNumber.toLowerCase().includes(q))
-                    );
+                    return this.parts.filter(p => (p.name + ' ' + p.partNumber).toLowerCase().includes(q));
                 },
                 get filteredJobs() {
                     if (!this.searchQuery) return this.jobs;
                     const q = this.searchQuery.toLowerCase();
-                    return this.jobs.filter(j =>
-                        (j.status && j.status.toLowerCase().includes(q))
-                    );
+                    return this.jobs.filter(j => (j.status).toLowerCase().includes(q));
                 },
                 get filteredInvoices() {
                     if (!this.searchQuery) return this.invoices;
                     const q = this.searchQuery.toLowerCase();
-                    return this.invoices.filter(i =>
-                        (i.number && i.number.toLowerCase().includes(q))
-                    );
+                    return this.invoices.filter(i => (i.number).toLowerCase().includes(q));
                 },
                 get filteredMechanics() {
                     if (!this.searchQuery) return this.mechanics;
                     const q = this.searchQuery.toLowerCase();
-                    return this.mechanics.filter(m =>
-                        (m.name && m.name.toLowerCase().includes(q)) ||
-                        (m.team && m.team.toLowerCase().includes(q))
-                    );
+                    return this.mechanics.filter(m => (m.name + ' ' + m.team).toLowerCase().includes(q));
                 }
             }
         }
