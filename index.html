@@ -748,7 +748,7 @@
                         return;
                     }
                     if (this.activeTab === 'dashboard') {
-                        alert('Please select a specific category tab (Vehicles, Owners, Parts, Jobs, Invoices, or Mechanics) to add a record.');
+                        alert('Please select a specific category tab to add a record.');
                         return;
                     }
                     this.modalMode = 'add';
@@ -797,89 +797,49 @@
                     const owner = this.owners.find(o => o.id === invoice.ownerId);
                     const vehicle = this.vehicles.find(v => v.id === invoice.vehicleId);
 
+                    let itemsHtml = '';
+                    if (lines.length > 0) {
+                        lines.forEach(l => {
+                            const lineTotal = (l.price || 0) * (l.quantity || 1);
+                            itemsHtml += '<tr><td>' + (l.description || '') + '</td>' +
+                                '<td style="text-align: center;">' + (l.quantity || 1) + '</td>' +
+                                '<td style="text-align: right;">£' + (l.price || 0).toFixed(2) + '</td>' +
+                                '<td style="text-align: right;">£' + lineTotal.toFixed(2) + '</td></tr>';
+                        });
+                    } else {
+                        itemsHtml = '<tr><td colspan="4" style="text-align: center;">Invoice #' + invoice.number + '</td></tr>';
+                    }
+
+                    const html = '<html><head><title>Invoice #' + invoice.number + '</title>' +
+                        '<style>body { font-family: sans-serif; padding: 30px; color: #333; max-width: 800px; margin: auto; } ' +
+                        '.header { text-align: center; border-bottom: 2px solid #1E3A34; padding-bottom: 15px; margin-bottom: 25px; } ' +
+                        '.header h1 { color: #1E3A34; margin: 0; text-transform: uppercase; } ' +
+                        '.biz-details { font-size: 0.9em; color: #666; margin-top: 5px; } ' +
+                        '.details { margin-bottom: 25px; } .details table { width: 100%; } .details td { vertical-align: top; } ' +
+                        '.invoice-info { text-align: right; } ' +
+                        '.items { width: 100%; border-collapse: collapse; margin-bottom: 25px; } ' +
+                        '.items th { background: #1E3A34; color: white; padding: 10px; text-align: left; } ' +
+                        '.items td { padding: 10px; border-bottom: 1px solid #eee; } ' +
+                        '.total { text-align: right; font-size: 1.2em; font-weight: bold; padding-top: 15px; border-top: 2px solid #1E3A34; } ' +
+                        '.footer { margin-top: 60px; text-align: center; font-size: 0.8em; color: #777; } ' +
+                        '@media print { body { padding: 0; } }</style></head><body>' +
+                        '<div class="header"><h1>' + (this.businessName || 'R&K Auto Garage') + '</h1>' +
+                        '<div class="biz-details">' + (this.businessAddress || '') + '<br>' + (this.businessVat ? 'VAT: ' + this.businessVat : '') + '</div></div>' +
+                        '<div class="details"><table><tr><td><strong>Bill To:</strong><br>' + (owner ? owner.fullName : 'Customer') + '<br>' +
+                        (owner && owner.businessName ? owner.businessName + '<br>' : '') + (owner && owner.phone ? owner.phone : '') +
+                        '</td><td class="invoice-info"><strong>Invoice #:</strong> ' + invoice.number + '<br>' +
+                        '<strong>Status:</strong> ' + (invoice.isPaid ? 'Paid' : 'Pending') + '<br>' +
+                        '<strong>Vehicle:</strong> ' + (vehicle ? vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model : 'N/A') + '<br>' +
+                        '<strong>Reg:</strong> ' + (vehicle ? vehicle.regPlate : 'N/A') + '</td></tr></table></div>' +
+                        '<table class="items"><thead><tr><th>Description</th><th style="text-align: center;">Qty</th>' +
+                        '<th style="text-align: right;">Price</th><th style="text-align: right;">Total</th></tr></thead>' +
+                        '<tbody>' + itemsHtml + '</tbody></table>' +
+                        '<div class="total">Grand Total: £' + (invoice.amount || 0).toFixed(2) + '</div>' +
+                        '<div class="footer"><p>Thank you for your business!</p><p>Payment reference: Invoice #' + invoice.number + '</p></div>' +
+                        '<script>window.print();<\/script></body></html>';
+
                     const win = window.open('', '_blank');
-                    win.document.write(`
-                        <html>
-                        <head>
-                            <title>Invoice #${invoice.number}</title>
-                            <style>
-                                body { font-family: sans-serif; padding: 30px; color: #333; max-width: 800px; margin: auto; }
-                                .header { text-align: center; border-bottom: 2px solid #1E3A34; padding-bottom: 15px; margin-bottom: 25px; }
-                                .header h1 { color: #1E3A34; margin: 0; text-transform: uppercase; }
-                                .biz-details { font-size: 0.9em; color: #666; margin-top: 5px; }
-                                .details { margin-bottom: 25px; }
-                                .details table { width: 100%; }
-                                .details td { vertical-align: top; }
-                                .invoice-info { text-align: right; }
-                                .items { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-                                .items th { background: #1E3A34; color: white; padding: 10px; text-align: left; }
-                                .items td { padding: 10px; border-bottom: 1px solid #eee; }
-                                .total { text-align: right; font-size: 1.2em; font-weight: bold; padding-top: 15px; border-top: 2px solid #1E3A34; }
-                                .footer { margin-top: 60px; text-align: center; font-size: 0.8em; color: #777; }
-                                @media print { body { padding: 0; } }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="header">
-                                <h1>${this.businessName || 'R&K Auto Garage'}</h1>
-                                <div class="biz-details">
-                                    ${this.businessAddress || ''}<br>
-                                    ${this.businessVat ? 'VAT: ' + this.businessVat : ''}
-                                </div>
-                            </div>
-                            <div class="details">
-                                <table>
-                                    <tr>
-                                        <td>
-                                            <strong>Bill To:</strong><br>
-                                            ${owner ? owner.fullName : 'Customer'}<br>
-                                            ${owner && owner.businessName ? owner.businessName + '<br>' : ''}
-                                            ${owner && owner.phone ? owner.phone : ''}
-                                        </td>
-                                        <td class="invoice-info">
-                                            <strong>Invoice #:</strong> ${invoice.number}<br>
-                                            <strong>Status:</strong> ${invoice.isPaid ? 'Paid' : 'Pending'}<br>
-                                            <strong>Vehicle:</strong> ${vehicle ? vehicle.year + ' ' + vehicle.make + ' ' + vehicle.model : 'N/A'}<br>
-                                            <strong>Reg:</strong> ${vehicle ? vehicle.regPlate : 'N/A'}
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
-                            <table class="items">
-                                <thead>
-                                    <tr>
-                                        <th>Description</th>
-                                        <th style="text-align: center;">Qty</th>
-                                        <th style="text-align: right;">Price</th>
-                                        <th style="text-align: right;">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${lines.length > 0 ? lines.map(l => `
-                                        <tr>
-                                            <td>${l.description}</td>
-                                            <td style="text-align: center;">${l.quantity}</td>
-                                            <td style="text-align: right;">£${(l.price || 0).toFixed(2)}</td>
-                                            <td style="text-align: right;">£${((l.price || 0) * (l.quantity || 1)).toFixed(2)}</td>
-                                        </tr>
-                                    `).join('') : `
-                                        <tr>
-                                            <td colspan="4" style="text-align: center;">Invoice #${invoice.number}</td>
-                                        </tr>
-                                    `}
-                                </tbody>
-                            </table>
-                            <div class="total">
-                                Grand Total: £${(invoice.amount || 0).toFixed(2)}
-                            </div>
-                            <div class="footer">
-                                <p>Thank you for your business!</p>
-                                <p>Payment reference: Invoice #${invoice.number}</p>
-                            </div>
-                            <script>window.print();</script>
-                        </body>
-                        </html>
-                    `);
+                    win.document.write(html);
                     win.document.close();
                 },
 
