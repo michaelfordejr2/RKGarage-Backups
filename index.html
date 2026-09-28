@@ -48,7 +48,7 @@
         <template x-if="errorMessage">
             <div class="mb-8 bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h3 class="font-bold text-base mb-1">⚠️ Database Backup Not Detected Automatically</h3>
+                    <h3 class="font-bold text-base mb-1">⚠️ Portal Data Still Syncing</h3>
                     <p class="text-sm text-amber-700" x-text="errorMessage"></p>
                 </div>
                 <label class="bg-[#1E3A34] hover:bg-[#2C5E55] text-white px-5 py-3 rounded-xl text-sm font-bold transition cursor-pointer whitespace-nowrap shadow-sm">
@@ -63,7 +63,7 @@
                 <input type="text" x-model="searchQuery" placeholder="Search current view..." class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2C5E55] shadow-sm">
             </div>
             <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                Live SQLite Wasm Engine Active
+                Live Enterprise Portal Active
             </div>
         </div>
 
@@ -140,7 +140,7 @@
                                 <td class="py-3 px-4 font-black text-[#2C5E55]" x-text="v.regPlate"></td>
                                 <td class="py-3 px-4 font-semibold" x-text="v.year + ' ' + v.make + ' ' + v.model"></td>
                                 <td class="py-3 px-4 text-slate-500 font-mono text-xs" x-text="v.vin"></td>
-                                <td class="py-3 px-4 text-slate-600" x-text="v.mileage.toLocaleString() + ' mi'"></td>
+                                <td class="py-3 px-4 text-slate-600" x-text="(v.mileage || 0).toLocaleString() + ' mi'"></td>
                                 <td class="py-3 px-4 text-slate-700" x-text="v.ownerNameDisplay || 'N/A'"></td>
                             </tr>
                         </template>
@@ -160,7 +160,6 @@
                             <th class="py-3 px-4">Type</th>
                             <th class="py-3 px-4">Business Name</th>
                             <th class="py-3 px-4">Phone</th>
-                            <th class="py-3 px-4">Address</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -172,7 +171,6 @@
                                 </td>
                                 <td class="py-3 px-4 text-slate-600" x-text="o.businessName || '-'"></td>
                                 <td class="py-3 px-4 font-mono text-xs text-slate-700" x-text="o.phone"></td>
-                                <td class="py-3 px-4 text-slate-500" x-text="o.address || '-'"></td>
                             </tr>
                         </template>
                     </tbody>
@@ -190,7 +188,6 @@
                             <th class="py-3 px-4">Part Name</th>
                             <th class="py-3 px-4">Part Number</th>
                             <th class="py-3 px-4">Quantity</th>
-                            <th class="py-3 px-4">Purchase Price</th>
                             <th class="py-3 px-4">Selling Price</th>
                         </tr>
                     </thead>
@@ -202,8 +199,7 @@
                                 <td class="py-3 px-4">
                                     <span class="px-2.5 py-1 rounded-full text-xs font-bold" :class="p.quantity <= p.minThreshold ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'" x-text="p.quantity"></span>
                                 </td>
-                                <td class="py-3 px-4 text-slate-600" x-text="'£' + p.purchasePrice.toFixed(2)"></td>
-                                <td class="py-3 px-4 font-bold text-slate-800" x-text="'£' + p.sellingPrice.toFixed(2)"></td>
+                                <td class="py-3 px-4 font-bold text-slate-800" x-text="'£' + (p.sellingPrice || 0).toFixed(2)"></td>
                             </tr>
                         </template>
                     </tbody>
@@ -221,8 +217,6 @@
                             <th class="py-3 px-4">Job ID</th>
                             <th class="py-3 px-4">Status</th>
                             <th class="py-3 px-4">Vehicle ID</th>
-                            <th class="py-3 px-4">Labor Price</th>
-                            <th class="py-3 px-4">Parts Price</th>
                             <th class="py-3 px-4">Total Price</th>
                         </tr>
                     </thead>
@@ -234,9 +228,7 @@
                                     <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700" x-text="j.status"></span>
                                 </td>
                                 <td class="py-3 px-4 text-slate-700" x-text="j.vehicleId"></td>
-                                <td class="py-3 px-4 text-slate-600" x-text="'£' + j.laborPrice.toFixed(2)"></td>
-                                <td class="py-3 px-4 text-slate-600" x-text="'£' + j.partsPrice.toFixed(2)"></td>
-                                <td class="py-3 px-4 font-black text-[#2C5E55]" x-text="'£' + j.totalPrice.toFixed(2)"></td>
+                                <td class="py-3 px-4 font-black text-[#2C5E55]" x-text="'£' + (j.totalPrice || 0).toFixed(2)"></td>
                             </tr>
                         </template>
                     </tbody>
@@ -254,18 +246,16 @@
                             <th class="py-3 px-4">Invoice #</th>
                             <th class="py-3 px-4">Amount</th>
                             <th class="py-3 px-4">Status</th>
-                            <th class="py-3 px-4">Edit Count</th>
                         </tr>
                     </thead>
                     <tbody>
                         <template x-for="i in filteredInvoices" :key="i.id">
                             <tr class="border-b border-slate-100 table-row text-sm">
                                 <td class="py-3 px-4 font-black text-[#2C5E55]" x-text="i.number"></td>
-                                <td class="py-3 px-4 font-bold text-slate-800" x-text="'£' + i.amount.toFixed(2)"></td>
+                                <td class="py-3 px-4 font-bold text-slate-800" x-text="'£' + (i.amount || 0).toFixed(2)"></td>
                                 <td class="py-3 px-4">
                                     <span class="px-2.5 py-1 rounded-full text-xs font-bold" :class="i.isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'" x-text="i.isPaid ? 'Paid' : 'Pending'"></span>
                                 </td>
-                                <td class="py-3 px-4 text-slate-500" x-text="i.editCount"></td>
                             </tr>
                         </template>
                     </tbody>
@@ -316,32 +306,23 @@
                 jobs: [],
                 invoices: [],
                 mechanics: [],
-                sqlInstance: null,
 
                 async init() {
                     try {
-                        this.status = 'Loading Wasm...';
-                        const SQL = await initSqlJs({
-                            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
-                        });
-
-                        this.status = 'Fetching DB...';
+                        this.status = 'Fetching portal_data.json...';
                         const hostnameParts = window.location.hostname.split('.');
                         const pathParts = window.location.pathname.split('/').filter(Boolean);
                         const username = hostnameParts.length > 2 ? hostnameParts[0] : 'username';
                         const repo = pathParts.length > 0 ? pathParts[0] : 'RKGarage-Backups';
 
-                        const dbUrls = [
-                            './workshop.db',
-                            './garage_database.db',
-                            `https://raw.githubusercontent.com/${username}/${repo}/main/garage_database.db`,
-                            `https://raw.githubusercontent.com/${username}/${repo}/master/garage_database.db`,
-                            `https://raw.githubusercontent.com/${username}/${repo}/main/backups/garage_database.db`,
-                            `https://raw.githubusercontent.com/${username}/${repo}/master/backups/garage_database.db`
+                        const jsonUrls = [
+                            './portal_data.json',
+                            `https://raw.githubusercontent.com/${username}/${repo}/main/portal_data.json`,
+                            `https://raw.githubusercontent.com/${username}/${repo}/master/portal_data.json`
                         ];
 
                         let response = null;
-                        for (const url of dbUrls) {
+                        for (const url of jsonUrls) {
                             try {
                                 const res = await fetch(url);
                                 if (res.ok) {
@@ -352,17 +333,30 @@
                         }
 
                         if (!response) {
-                            this.errorMessage = 'Could not fetch database automatically from GitHub Pages or repository. You can instantly load your database file manually using the button on the right.';
-                            this.status = 'Awaiting Manual File Upload';
+                            this.errorMessage = 'portal_data.json is still syncing (staged 3-minute rollout). Please wait a moment and refresh, or select your database file manually using the button on the right.';
+                            this.status = 'Awaiting Sync';
                             return;
                         }
 
-                        const buffer = await response.arrayBuffer();
-                        const db = new SQL.Database(new Uint8Array(buffer));
-                        this.loadDataFromDb(db);
+                        const data = await response.json();
+                        this.vehicles = data.vehicles || [];
+                        this.owners = data.owners || [];
+                        this.parts = data.parts || [];
+                        this.jobs = data.jobs || [];
+                        this.invoices = data.invoices || [];
+                        this.mechanics = data.mechanics || [];
+
+                        this.stats.vehiclesCount = this.vehicles.length;
+                        this.stats.ownersCount = this.owners.length;
+                        this.stats.partsCount = this.parts.length;
+                        this.stats.totalOwer = this.invoices.filter(i => !i.isPaid).reduce((sum, i) => sum + i.amount, 0); // fixed spelling
+                        this.stats.totalOwed = this.stats.totalOwer;
+
+                        this.status = 'Live Data Connected';
+                        this.errorMessage = '';
 
                     } catch (e) {
-                        this.status = 'Error loading Wasm/DB';
+                        this.status = 'Error loading portal data';
                         this.errorMessage = e.message;
                         console.error(e);
                     }
@@ -381,45 +375,40 @@
                             });
                             const buffer = e.target.result;
                             const db = new SQL.Database(new Uint8Array(buffer));
-                            this.loadDataFromDb(db);
+
+                            const safeQueryAll = (sql) => {
+                                try {
+                                    const res = db.exec(sql);
+                                    if (res.length === 0 || !res[0].values) return [];
+                                    const cols = res[0].columns;
+                                    return res[0].values.map(row => {
+                                        let obj = {};
+                                        cols.forEach((col, idx) => obj[col] = row[idx]);
+                                        return obj;
+                                    });
+                                } catch (e) { return []; }
+                            };
+
+                            this.vehicles = safeQueryAll("SELECT * FROM vehicles;");
+                            this.owners = safeQueryAll("SELECT * FROM owners;");
+                            this.parts = safeQueryAll("SELECT * FROM parts;");
+                            this.jobs = safeQueryAll("SELECT * FROM jobs;");
+                            this.invoices = safeQueryAll("SELECT * FROM invoices;");
+                            this.mechanics = safeQueryAll("SELECT * FROM mechanics;");
+
+                            this.stats.vehiclesCount = this.vehicles.length;
+                            this.stats.ownersCount = this.owners.length;
+                            this.stats.partsCount = this.parts.length;
+                            this.stats.totalOwed = this.invoices.filter(i => !i.isPaid).reduce((sum, i) => sum + i.amount, 0);
+
                             this.status = 'Local Database Loaded';
+                            this.errorMessage = '';
                         } catch (err) {
                             this.status = 'Error parsing DB';
                             this.errorMessage = err.message;
                         }
                     };
                     reader.readAsArrayBuffer(file);
-                },
-
-                loadDataFromDb(db) {
-                    this.sqlInstance = db;
-                    this.status = 'Live Data Connected';
-                    this.errorMessage = '';
-
-                    const safeQueryAll = (sql) => {
-                        try {
-                            const res = db.exec(sql);
-                            if (res.length === 0 || !res[0].values) return [];
-                            const cols = res[0].columns;
-                            return res[0].values.map(row => {
-                                let obj = {};
-                                cols.forEach((col, idx) => obj[col] = row[idx]);
-                                return obj;
-                            });
-                        } catch (e) { return []; }
-                    };
-
-                    this.vehicles = safeQueryAll("SELECT * FROM vehicles;");
-                    this.owners = safeQueryAll("SELECT * FROM owners;");
-                    this.parts = safeQueryAll("SELECT * FROM parts;");
-                    this.jobs = safeQueryAll("SELECT * FROM jobs;");
-                    this.invoices = safeQueryAll("SELECT * FROM invoices;");
-                    this.mechanics = safeQueryAll("SELECT * FROM mechanics;");
-
-                    this.stats.vehiclesCount = this.vehicles.length;
-                    this.stats.ownersCount = this.owners.length;
-                    this.stats.partsCount = this.parts.length;
-                    this.stats.totalOwed = this.invoices.filter(i => !i.isPaid).reduce((sum, i) => sum + i.amount, 0);
                 },
 
                 // Computed filters for search query
