@@ -25,7 +25,9 @@
         </div>
         <div class="flex items-center gap-4 text-sm text-slate-300">
             <span class="bg-[#1E3A34] px-3 py-1.5 rounded-full text-xs font-bold text-[#38BDF8]" x-text="status">Connecting...</span>
-            <button @click="init()" class="bg-[#2C5E55] hover:bg-[#357066] px-3 py-1.5 rounded-xl text-xs font-bold text-white transition">🔄 Refresh DB</button>
+            <label class="bg-[#2C5E55] hover:bg-[#357066] px-3 py-1.5 rounded-xl text-xs font-bold text-white transition cursor-pointer">
+                📁 Load .db File <input type="file" @change="loadLocalFile($event)" accept=".db,.sqlite,.sqlite3" class="hidden">
+            </label>
         </div>
     </header>
 
@@ -41,6 +43,19 @@
     </nav>
 
     <div class="max-w-7xl mx-auto px-6 py-10">
+
+        <!-- ERROR / BACKUP NOTICE BANNER -->
+        <template x-if="errorMessage">
+            <div class="mb-8 bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h3 class="font-bold text-base mb-1">⚠️ Database Backup Not Detected Automatically</h3>
+                    <p class="text-sm text-amber-700" x-text="errorMessage"></p>
+                </div>
+                <label class="bg-[#1E3A34] hover:bg-[#2C5E55] text-white px-5 py-3 rounded-xl text-sm font-bold transition cursor-pointer whitespace-nowrap shadow-sm">
+                    📁 Select `garage_database.db` <input type="file" @change="loadLocalFile($event)" accept=".db,.sqlite,.sqlite3" class="hidden">
+                </label>
+            </div>
+        </template>
 
         <!-- GLOBAL SEARCH & CONTROLS -->
         <div class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -291,6 +306,7 @@
         function enterprisePortal() {
             return {
                 status: 'Connecting...',
+                errorMessage: '',
                 activeTab: 'dashboard',
                 searchQuery: '',
                 stats: { vehiclesCount: 0, ownersCount: 0, partsCount: 0, totalOwed: 0 },
@@ -300,6 +316,7 @@
                 jobs: [],
                 invoices: [],
                 mechanics: [],
+                sqlInstance: null,
 
                 async init() {
                     try {
@@ -332,42 +349,88 @@
                             } catch (_) {}
                         }
 
-                        if (!response) throw new Error('Database backup not found in repository or pages artifact.');
+                        if (!response) {
+                            this.errorMessage = 'Could not fetch database automatically from GitHub Pages or repository. You can instantly load your database file manually using the button on the right.';
+                            this.status = 'Awaiting Manual File Upload';
+                            return;
+                        }
 
                         const buffer = await response.arrayBuffer();
                         const db = new SQL.Database(new Uint8Array(buffer));
-                        this.status = 'Live Data Connected';
-
-                        // Helper query function
-                        const queryAll = (sql) => {
-                            try {
-                                const res = db.exec(sql);
-                                if (res.length === 0) return [];
-                                const cols = res[0].columns;
-                                return res[0].values.map(row => {
-                                    let obj = {};
-                                    cols.forEach((col, idx) => obj[col] = row[idx]);
-                                    return obj;
-                                });
-                            } catch (e) { return []; }
-                        };
-
-                        this.vehicles = queryAll("SELECT * FROM vehicles;");
-                        this.owners = queryAll("SELECT * FROM owners;");
-                        this.parts = queryAll("SELECT * FROM parts;");
-                        this.jobs = queryAll("SELECT * FROM jobs;");
-                        this.invoices = queryAll("SELECT * FROM invoices;");
-                        this.mechanics = queryAll("SELECT * FROM mechanics;");
-
-                        this.stats.vehiclesCount = this.vehicles.length;
-                        this.stats.ownersCount = this.owners.length;
-                        this.stats.partsCount = this.parts.length;
-                        this.stats.totalOwed = this.invoices.filter(i => !i.isPaid).reduce((sum, i) => sum + i.amount, 0);
+                        this.loadDataFromDb(db);
 
                     } catch (e) {
-                        this.status = 'Error: ' + e.message;
+                        this.status = 'Error loading Wasm/DB';
+                        this.errorMessage = e.message;
                         console.error(e);
                     }
+                },
+
+                loadLocalFile(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    this.status = 'Loading local file...';
+                    this.errorMessage = '';
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const SQL = await initSqlJs({
+                                locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+                            });
+                            const buffer = e.target.result;
+                            const db = new SQL.Database(new Uint8Array(buffer));
+                            this.loadDataFromDb(db);
+                            this.status = 'Local Database Loaded';
+                        } catch (err) {
+                            this.status = 'Error parsing DB';
+                            this.errorMessage = err.message;
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                },
+
+                loadDataFromDb(db) {
+                    this.sqlInstance = db;
+                    this.status = 'Live Data Connected';
+                    this.errorMessage = '';
+
+                    const queryAll = (sql) => {
+                        try {
+                            const res = db.exec(sql);
+                            if (res.length === 0) return [];
+                            const cols = res[0].columns;
+                            return res.values.map(row => { // Wait, sql.js returns res[0].values
+                                // fix: use res[0].values
+                                return [];
+                            });
+                        } catch (e) { return []; }
+                    };
+
+                    // Correct helper query function for sql.js result format
+                    const safeQueryAll = (sql) => {
+                        try {
+                            const res = db.exec(sql);
+                            if (res.length === 0 || !res[0].values) return [];
+                            const cols = res[0].columns;
+                            return res[0].values.map(row => {
+                                let obj = {};
+                                cols.forEach((col, idx) => obj[col] = row[idx]);
+                                return obj;
+                            });
+                        } catch (e) { return []; }
+                    };
+
+                    this.vehicles = safeQueryAll("SELECT * FROM vehicles;");
+                    this.owners = safeQueryAll("SELECT * FROM owners;");
+                    this.parts = safeQueryAll("SELECT * FROM parts;");
+                    this.jobs = safeQueryAll("SELECT * FROM jobs;");
+                    this.invoices = safeQueryAll("SELECT * FROM invoices;");
+                    this.mechanics = safeQueryAll("SELECT * FROM mechanics;");
+
+                    this.stats.vehiclesCount = this.vehicles.length;
+                    this.stats.ownersCount = this.owners.length;
+                    this.stats.partsCount = this.parts.length;
+                    this.stats.totalOwed = this.invoices.filter(i => !i.isPaid).reduce((sum, i) => sum + i.amount, 0);
                 },
 
                 // Computed filters for search query
