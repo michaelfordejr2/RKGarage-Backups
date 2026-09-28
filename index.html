@@ -333,7 +333,9 @@
 
                         const dbUrls = [
                             './workshop.db',
-                            './backups/garage_database.db',
+                            './garage_database.db',
+                            `https://raw.githubusercontent.com/${username}/${repo}/main/garage_database.db`,
+                            `https://raw.githubusercontent.com/${username}/${repo}/master/garage_database.db`,
                             `https://raw.githubusercontent.com/${username}/${repo}/main/backups/garage_database.db`,
                             `https://raw.githubusercontent.com/${username}/${repo}/master/backups/garage_database.db`
                         ];
@@ -394,19 +396,6 @@
                     this.status = 'Live Data Connected';
                     this.errorMessage = '';
 
-                    const queryAll = (sql) => {
-                        try {
-                            const res = db.exec(sql);
-                            if (res.length === 0) return [];
-                            const cols = res[0].columns;
-                            return res.values.map(row => { // Wait, sql.js returns res[0].values
-                                // fix: use res[0].values
-                                return [];
-                            });
-                        } catch (e) { return []; }
-                    };
-
-                    // Correct helper query function for sql.js result format
                     const safeQueryAll = (sql) => {
                         try {
                             const res = db.exec(sql);
